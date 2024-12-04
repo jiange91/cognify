@@ -520,9 +520,9 @@ class OptimizationLayer:
         indent = "---" * self.hierarchy_level + ">"
         if self.top_down_info.trace_back:
             opt_trace = " | ".join(self.top_down_info.trace_back)
-            return f"{indent} {self.name} in {opt_trace} | (best score: {score:.2f}, lowest cost@1000: ${cost*1000:.2f}) | Accumulated Opt Cost: ${total_opt_cost:.2f}"
+            return f"{indent} {self.name} in {opt_trace} | (best score: {score:.2f}, lowest cost@1000: ${cost*1000:.2f}) | Total Optimization Cost: ${total_opt_cost:.2f}"
         else:
-            return f"{indent} {self.name} | (best score: {score:.2f}, lowest cost@1000: ${cost*1000:.2f}) | Accumulated Opt Cost: ${total_opt_cost:.2f}"
+            return f"{indent} {self.name} | (best score: {score:.2f}, lowest cost@1000: ${cost*1000:.2f}) | Total Optimization Cost: ${total_opt_cost:.2f}"
 
     def _optimize(self, base_program: list[Module]):
         opt_config = self.top_down_info.opt_config
