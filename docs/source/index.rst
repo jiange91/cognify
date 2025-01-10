@@ -15,7 +15,6 @@ Cognify documentation
    api_ref/modules
 
 **Useful links**:
-
 :ref:`Installation <user_guide_installation>` |
 `Source Repository <https://github.com/GenseeAI/cognify>`_ |
 `Blog Post <https://mlsys.wuklab.io/posts/cognify/>`_
