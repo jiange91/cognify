@@ -238,6 +238,12 @@ class LogManager:
             raise ValueError(f"Layer {layer_instance} already registered at LogManager")
         self.layer_stats[layer_instance] = LayerStat(layer_name, layer_instance, opt_log_path, is_leaf)
     
+    def remove_layer(
+        self,
+        layer_instance: str
+    ):
+        del self.layer_stats[layer_instance]
+    
     def add_trial(self, layer_instance: str, params) -> str:
         return self.layer_stats[layer_instance].add_trial(params)
     

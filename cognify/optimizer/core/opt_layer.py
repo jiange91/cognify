@@ -20,6 +20,8 @@ from concurrent.futures import (
 )
 import threading
 import traceback
+import math
+from concurrent.futures import Future
 
 from cognify._signal import _should_exit
 from cognify.graph.program import Module
@@ -126,6 +128,98 @@ class OptLayerInterface(GeneralEvaluatorInterface):
     
     def evaluate(self, tdi, **kwargs):
         return self.optimize(tdi)
+
+class SuccessiveHalving:
+    """Policy for successive halving resource allocation
+    
+    If a layer (A) adopts this policy, it will allocate resources for the next layer (B)
+    
+    layer A will first propose `n` trials, then
+    
+    **SH routine**:
+    1. each remaining trial at layer B will have a fixed step_budget = `r_i`
+    2. after all trials are evaluated, unpromising trials will be pruned
+    3. repeat from step 1 until no trials left or iteration limit reached
+    """
+    def __init__(
+        self,
+        prune_rate: int,
+        num_SH_iter: int,
+        initial_step_budget: int,
+        hierarchy_level: int,
+        next_layer_factory: Callable[[], GeneralEvaluatorInterface],
+        selected_runs: list[TopDownInformation],
+    ):
+        self.prune_rate = prune_rate
+        self.num_SH_iter = num_SH_iter
+        self.initial_step_budget = initial_step_budget
+        self.hierarchy_level = hierarchy_level
+        self.selected_runs: list[TopDownInformation] = selected_runs
+        self.ready_to_run = [i for i in range(len(selected_runs))]
+        self.num_inner_trials = [0] * len(selected_runs)
+        self._next_layer_factory = next_layer_factory
+    
+    def _evaluate_one_config(self, i):
+        _next_layer = self._next_layer_factory()
+        result = _next_layer.evaluate(
+            self.selected_runs[i],
+            show_process=True,
+            hierarchy_level=self.hierarchy_level + 1,
+        )
+        return result
+    
+    
+    def run_and_prune(self):
+        for i in range(self.num_SH_iter):
+            if len(self.ready_to_run) == 0:
+                break
+            
+            print(f"SH next with {self.ready_to_run}, budget: {self.initial_step_budget * self.prune_rate ** i}")
+            for j in self.ready_to_run:
+                self.num_inner_trials[j] += int(self.initial_step_budget * self.prune_rate ** i)
+                self.selected_runs[j].opt_config.n_trials = int(self.initial_step_budget * self.prune_rate ** i)
+                
+            futures: list[Future] = []
+            with ThreadPoolExecutor(max_workers=len(self.ready_to_run)) as executor:
+                for j in self.ready_to_run:
+                    futures.append(executor.submit(
+                        self._evaluate_one_config, j
+                    ))
+                    
+                try:
+                    outer_indicators = []
+                    for f in futures:
+                        eval_result: EvaluationResult = f.result()
+                        outer_indicators.append((eval_result.reduced_score, eval_result.reduced_price, eval_result.reduced_exec_time))
+                except Exception as e:
+                    logger.error(f"Error in SH: {e}")
+                    raise
+            
+            # outer_indicators = []
+            # for i in self.ready_to_run:
+            #     eval_result = self.selected_outer_runs[i](self.inner_step_budget)
+            #     outer_indicators.append((eval_result.reduced_score, eval_result.reduced_price))
+            
+            # sort by higher score, lower time, lower price
+            sorted_indicator_indices = sorted(
+                range(len(outer_indicators)),
+                key=lambda x: (-outer_indicators[x][0], outer_indicators[x][2], outer_indicators[x][1])
+            )
+            n_i =  int(len(self.selected_runs) * self.prune_rate ** -i)
+            n_ii = int(n_i / self.prune_rate)
+            runs_left_to_run = sorted_indicator_indices[:n_ii]
+            self.ready_to_run = [self.ready_to_run[i] for i in runs_left_to_run]
+    
+    def execute(self):
+        self.run_and_prune()
+        # Collect inner loop performance
+        outer_run_evals = []
+        # get next layer results without any trials
+        for i in range(len(self.selected_runs)):
+            self.selected_runs[i].opt_config.n_trials = 0
+            _next_layer = self._next_layer_factory()
+            outer_run_evals.append(_next_layer.evaluate(self.selected_runs[i]))
+        return outer_run_evals, self.num_inner_trials
     
 class OptLayer(OptLayerInterface):
     def __init__(
@@ -183,7 +277,7 @@ class OptLayer(OptLayerInterface):
         self.is_leaf = is_leaf
         self.top_down_info: TopDownInformation = None
         logger.info(f"OptLayer {self.name} initialized")
-    
+
     def optimize(self, current_tdi):
         current_tdi.initialize(self.opt_config)
         self.top_down_info = current_tdi
@@ -199,12 +293,19 @@ class OptLayer(OptLayerInterface):
             self._load_opt_ckpt()
 
         # start optimization
-        total_budget = self.top_down_info.opt_config.n_trials
+        opt_config = self.top_down_info.opt_config
+        if not opt_config.use_HB_allocation:
+            total_budget = self.top_down_info.opt_config.n_trials
+        else:
+            s_max = int(math.log(opt_config.initial_step_budget, opt_config.prune_rate))
+            total_budget = 0
+            for s in range(s_max, -1, -1):
+                total_budget += int((s_max + 1) / (s + 1) * opt_config.prune_rate ** s)
         if total_budget > 0:
             # setup progress bar
             LogManager().layer_stats[self._id].init_progress_bar(
                 level=self.hierarchy_level,
-                budget=self.top_down_info.opt_config.n_trials,
+                budget=total_budget,
                 leave=self.hierarchy_level == 0,
             )
             
@@ -215,7 +316,11 @@ class OptLayer(OptLayerInterface):
             close_pbar(self._id)
             
             self._save_ckpt()
+        result = self._get_layer_opt_feedback()
+        LogManager().remove_layer(self._id)
+        return result
 
+    def _get_layer_opt_feedback(self):
         pareto_frontier = LogManager().layer_stats[self._id].get_opt_summary()
         return self._get_layer_feedback(pareto_frontier)
         
@@ -230,7 +335,7 @@ class OptLayer(OptLayerInterface):
         
         for trial_log_id, trial_log in loaded_logs.items():
             assert trial_log.result.complete , f"Trial {trial_log_id} is not finished"
-            score, cost, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.exec_times
+            score, cost, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.reduced_exec_time
             trial = optuna.trial.create_trial(
                 params=trial_log.params,
                 values=[score, cost, exec_time],
@@ -258,6 +363,7 @@ class OptLayer(OptLayerInterface):
                 complete=LogManager().layer_stats[self._id].all_finished,
                 reduced_price=float(0xDEADBEEF),
                 reduced_score=0,
+                reduced_exec_time=float(0xDEADBEEF),
             )
             
         inner_log_ids, scores, prices, exec_times = [], [], [], []
@@ -492,9 +598,18 @@ class OptLayer(OptLayerInterface):
             self.top_down_info.other_python_paths + self._get_new_python_paths()
         )
         python_paths = list(set(python_paths))
+        
+        # set log path to next level opt
+        current_level_log_dir = self.top_down_info.opt_config.log_dir
+        trial_number = trial_log_id.rsplit("_", 1)[-1]
+        next_log_dir = os.path.join(
+            current_level_log_dir,
+            f"{self.name}_trial_{trial_number}",
+        )
+        next_opt_config = OptConfig._set_log_dir_for_next(log_dir=next_log_dir)
 
         next_level_info = TopDownInformation(
-            opt_config=copy.deepcopy(self.top_down_info.opt_config),
+            opt_config=next_opt_config,
             all_params=self.top_down_info.all_params.copy(),  # params from upper-levels will not be changed
             module_ttrace=new_trace,
             current_module_pool={m.name: m for m in new_program},
@@ -510,17 +625,6 @@ class OptLayer(OptLayerInterface):
             # so we make a copy of the current params
             for param in params:
                 next_level_info.all_params[param.hash] = copy.deepcopy(param)
-        
-        # set log path to next level opt
-        current_level_log_dir = self.top_down_info.opt_config.log_dir
-        _trial_number = trial_log_id.rsplit("_", 1)[-1]
-        next_level_info.opt_config.log_dir = os.path.join(
-            current_level_log_dir,
-            f"{self.name}_trial_{_trial_number}",
-        )
-        # set these path to None to let the next level to populate
-        next_level_info.opt_config.opt_log_path = None
-        next_level_info.opt_config.param_save_path = None
 
         return next_level_info
     
@@ -591,7 +695,7 @@ class OptLayer(OptLayerInterface):
             logger.error(traceback.format_exc())
             raise
         
-    def _optimize(self):
+    def _optimize_normal(self):
         opt_config = self.top_down_info.opt_config
         with ThreadPoolExecutor(max_workers=opt_config.throughput) as executor:
             futures = [
@@ -611,6 +715,72 @@ class OptLayer(OptLayerInterface):
                     logger.error(f"Error in evaluating task: {e}")
                     raise
     
+    def _optimize_SH(self):
+        opt_config = self.top_down_info.opt_config
+        
+        bucket_size = opt_config.throughput
+        n_bucket_iter = opt_config.n_trials // bucket_size
+        for i in range(n_bucket_iter):
+            # prepare bucket
+            proposals = [self._propose() for _ in range(bucket_size)]
+            next_layer_tdis = []
+            for _, program, new_trace, log_id in proposals:
+                next_layer_tdis.append(self._prepare_eval_task(program, new_trace, log_id))
+            
+            # optimize with SH
+            _sh_routine = SuccessiveHalving(
+                prune_rate=opt_config.prune_rate,
+                num_SH_iter=len(next_layer_tdis), # simple heuristic to allow exhaustive search
+                initial_step_budget=opt_config.initial_step_budget,
+                hierarchy_level=self.hierarchy_level,
+                next_layer_factory=self.next_layer_factory,
+                selected_runs=next_layer_tdis,
+            )
+            eval_results, buget_hist = _sh_routine.execute()
+            for (trial, _, _, log_id), eval_result in zip(proposals, eval_results):
+                self._update(trial, eval_result, log_id)
+                if eval_result and eval_result.complete:
+                    LogManager().report_trial_result(self._id, log_id, eval_result)
+                    self._save_ckpt()
+            
+    
+    def _optimize_HB(self):
+        opt_config = self.top_down_info.opt_config
+        
+        s_max = int(math.log(opt_config.initial_step_budget, opt_config.prune_rate))
+        for s in range(s_max, -1, -1):
+            bucket_size = int((s_max + 1) / (s + 1) * opt_config.prune_rate ** s)
+            # prepare bucket
+            proposals = [self._propose() for _ in range(bucket_size)]
+            next_layer_tdis = []
+            for _, program, new_trace, log_id in proposals:
+                next_layer_tdis.append(self._prepare_eval_task(program, new_trace, log_id))
+            initial_budget = int(opt_config.initial_step_budget * opt_config.prune_rate ** -s)
+            _sh_routine = SuccessiveHalving(
+                prune_rate=opt_config.prune_rate,
+                num_SH_iter=s+1,
+                initial_step_budget=initial_budget,
+                hierarchy_level=self.hierarchy_level,
+                next_layer_factory=self.next_layer_factory,
+                selected_runs=next_layer_tdis,
+            )
+            eval_results, buget_hist = _sh_routine.execute()
+            for (trial, _, _, log_id), eval_result in zip(proposals, eval_results):
+                self._update(trial, eval_result, log_id)
+                if eval_result and eval_result.complete:
+                    LogManager().report_trial_result(self._id, log_id, eval_result)
+                    self._save_ckpt()
+        
+
+    def _optimize(self):
+        opt_config = self.top_down_info.opt_config
+        if opt_config.use_HB_allocation:
+            self._optimize_HB()
+        elif opt_config.use_SH_allocation:
+            self._optimize_SH()
+        else:
+            self._optimize_normal()
+    
     def easy_optimize(
         self,
         script_path: str,
@@ -628,8 +798,3 @@ class OptLayer(OptLayerInterface):
         )
         
         self.optimize(tdi)
-        
-        opt_cost, pareto_frontier, finished_opt_logs = LogManager().get_global_summary(verbose=True)
-        assert LogManager().layer_stats[self._id].opt_cost == opt_cost, f"Inconsistent opt cost {LogManager().layer_stats[self._id].opt_cost} vs {opt_cost}"
-        return opt_cost, pareto_frontier, finished_opt_logs
-    

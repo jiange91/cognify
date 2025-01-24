@@ -218,7 +218,10 @@ class OptConfig:
     opt_log_path: str = field(default=None)
     param_save_path: str = field(default=None)
     frugal_eval_cost: bool = field(default=True)
+    use_HB_allocation: bool = field(default=False)
     use_SH_allocation: bool = field(default=False)
+    prune_rate: int = field(default=2)
+    initial_step_budget: int = field(default=8)
 
     def finalize(self):
         if not os.path.exists(self.log_dir):
@@ -229,10 +232,26 @@ class OptConfig:
             self.param_save_path = os.path.join(self.log_dir, "opt_params.json")
 
     def update(self, other: "OptConfig"):
-        # for all not None fields in other, update self
-        for key, value in other.__dict__.items():
-            if value is not None:
-                setattr(self, key, value)
+        # for all None fields in self, update from other
+        for k, v in asdict(other).items():
+            if getattr(self, k) is None:
+                setattr(self, k, v)
+    
+    @classmethod
+    def _set_log_dir_for_next(cls, log_dir: str):
+        # set other fields to None so that the next layer can populate
+        return cls(
+            n_trials=None,
+            throughput=None,
+            log_dir=log_dir,
+            evolve_interval=None,
+            opt_log_path=None,
+            param_save_path=None,
+            frugal_eval_cost=None,
+            use_HB_allocation=None,
+            use_SH_allocation=None,
+            prune_rate=None,
+        )
 
 
 @dataclass

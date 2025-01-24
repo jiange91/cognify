@@ -222,7 +222,7 @@ class EvalTask:
         
         # signal.signal(signal.SIGALRM, timeout_handler)
         # signal.alarm(60)
-
+        sema.acquire()
         try:
             # print(f"Task {task_index} start")
             if input is not None and not isinstance(input, dict):
@@ -445,29 +445,12 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             )
 
         results = []
-        n_visited = 0
+        
         for task_index, pair_idx in enumerate(indices):
             if _should_exit():
                 break
-
-            # check for result updates
-            while True:
-                try:
-                    # qsize = result_q.qsize()
-                    # print(f"qsize = {qsize}")
-                    eval_result = result_q.get(block=False)
-                    n_visited += 1
-                    if not eval_result[1]:
-                        continue
-                    results.append(eval_result)
-                    if show_process:
-                        update_pbar(eval_result)
-                except queue.Empty:
-                    break
-
+            
             input, label = data[pair_idx]
-            sema.acquire()
-            # print(f"Task {task_index} scheduled")
             worker = mp.Process(
                 target=task.evaluate_program,
                 args=(self._evaluator, input, label, task_index, sema, result_q),
@@ -476,7 +459,7 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             all_workers.append(worker)
 
         # print(f"waiting for {len(all_workers) - n_visited} workers to finish")
-        for i in range(len(all_workers) - n_visited):
+        for i in range(len(all_workers)):
             eval_result = result_q.get()
             if not eval_result[1]:
                 continue

@@ -102,7 +102,7 @@ class MultiLayerOptimizationDriver:
             other_python_paths=other_python_paths,
         )
         logger.info("----------------- Optimization Finished -----------------")
-        self.dump_frontier_details(frontier, finished_opt_logs)
+        self.inspect(dump_details=True)
         return opt_cost, frontier, finished_opt_logs
 
     def _extract_trial_id(self, config_id: str) -> str:
