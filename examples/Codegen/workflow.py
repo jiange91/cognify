@@ -3,7 +3,7 @@ from langchain_openai import ChatOpenAI
 
 # Load the environment variables
 dotenv.load_dotenv()
-model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+model = ChatOpenAI(model="gpt-4o", temperature=0)
 
 
 from langchain_core.prompts import ChatPromptTemplate

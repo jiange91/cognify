@@ -1,9 +1,11 @@
 import os
 import sys
 
+sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..'))
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', '..', '..', '..', '..'))
 import cognify
 from llm.parsers import PythonListOutputParser
+from annotated.common import lm_selection
 
 system_prompt = \
 """
@@ -79,10 +81,11 @@ demos = [
 
 ]
 
-lm_config = cognify.LMConfig(model="gpt-4o-mini", kwargs={"temperature": 0.2})
+lm_config = cognify.LMConfig(model=lm_selection, kwargs={"temperature": 0.2})
 exec = cognify.Model(agent_name="keyword_extraction",
              system_prompt=system_prompt, 
              input_variables=[cognify.Input(name=input) for input in inputs], 
              output=cognify.OutputLabel(name=output_format, custom_output_format_instructions=output_format_instructions),
              lm_config=lm_config)
+# exec.add_demos(demos)
 runnable_exec = cognify.as_runnable(exec) | PythonListOutputParser()

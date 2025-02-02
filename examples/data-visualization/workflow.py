@@ -63,7 +63,7 @@ def mainworkflow(query, directory_path, example_id, input_path):
     if os.path.exists(f'{workspace}/novice.png'):
         logging.debug('========= Get visual feedback =======')
         visual_refine_agent = VisualRefineAgent('novice.png', config, novice_code, query)
-        visual_feedback = visual_refine_agent.run('gpt-4o-mini', 'novice', 'novice_final.png')
+        visual_feedback = visual_refine_agent.run('gpt-4o', 'novice', 'novice_final.png')
         # logging.info('=========Visual Feedback=========')
         # logging.info(visual_feedback)
         final_instruction = '' + '\n\n' + visual_feedback

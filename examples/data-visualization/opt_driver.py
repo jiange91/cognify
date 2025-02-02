@@ -140,7 +140,7 @@ def opt(train, val, test):
         )
     ]
     model_param = model_selection.LMSelection(
-        'lm_model', model_selection.model_option_factory(lm_options)
+        'lm_model', model_selection.model_selection_factory(lm_options)
     )
     reasoning_param = reasoning.LMReasoning(
         "reasoning", [NoChange(), ZeroShotCoT()]

@@ -2,6 +2,9 @@ import cognify
 import json
 import numpy as np
 import os
+import dotenv
+
+dotenv.load_dotenv()
 
 @cognify.register_data_loader
 def load_data():

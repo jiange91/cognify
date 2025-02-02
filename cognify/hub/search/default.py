@@ -176,7 +176,7 @@ def create_search(
 ):
     if model_selection_cog is not None:
         if isinstance(model_selection_cog, list):
-            model_selection_options = model_selection.model_option_factory(
+            model_selection_options = model_selection.model_selection_factory(
                 model_selection_cog
             )
             model_selection_cog = model_selection.LMSelection(

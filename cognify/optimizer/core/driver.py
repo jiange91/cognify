@@ -58,7 +58,7 @@ class MultiLayerOptimizationDriver:
         GlobalOptConfig.base_quality = base_quality
         GlobalOptConfig.base_price = base_cost
         GlobalOptConfig.base_exec_time = base_exec_time
-        _log_mng = LogManager(base_quality, base_cost, base_exec_time)
+        _log_mng = LogManager(opt_log_dir, base_quality, base_cost, base_exec_time)
 
         # initialize optimization layers
         self.opt_layer_factories: list[Callable] = [None] * (len(layer_configs) + 1)
@@ -96,14 +96,14 @@ class MultiLayerOptimizationDriver:
         self.build_tiered_optimization(evaluator)
         top_layer = self.opt_layer_factories[0]()
         logger.info("----------------- Start Optimization -----------------")
-        opt_cost, frontier, finished_opt_logs = top_layer.easy_optimize(
+        top_layer.easy_optimize(
             script_path=script_path,
             script_args=script_args,
             other_python_paths=other_python_paths,
         )
         logger.info("----------------- Optimization Finished -----------------")
-        self.inspect(dump_details=True)
-        return opt_cost, frontier, finished_opt_logs
+        LogManager()._save_opt_trace()
+        return self.inspect(dump_details=True)
 
     def _extract_trial_id(self, config_id: str) -> str:
         param_log_dir = os.path.join(self.opt_log_dir, "pareto_frontier_details")
@@ -196,7 +196,7 @@ class MultiLayerOptimizationDriver:
         opt_cost, pareto_frontier, finished_opt_logs = LogManager().get_global_summary(verbose=True)
         if dump_details:
             self.dump_frontier_details(pareto_frontier, finished_opt_logs)
-        return
+        return opt_cost, pareto_frontier, finished_opt_logs
 
     def dump_frontier_details(self, frontier, finished_opt_logs):
         param_log_dir = os.path.join(self.opt_log_dir, "pareto_frontier_details")

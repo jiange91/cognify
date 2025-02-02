@@ -6,7 +6,7 @@ sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', '
 import cognify
 from langchain_core.output_parsers import JsonOutputParser
 from llm.parsers import ColumnSelectionOutput
-from annotated.common import use_simplifed
+from annotated.common import use_simplifed, lm_selection
 
 system_prompt = \
 """You are an expert and very smart data analyst.
@@ -46,7 +46,7 @@ output_format_instructions = \
 
 Make sure your response includes the table names as keys, each associated with a list of column names that are necessary for writing a SQL query to answer the question. Only output a json as your response.
 """
-lm_config = cognify.LMConfig(model="gpt-4o-mini", kwargs={"temperature": 0.0})
+lm_config = cognify.LMConfig(model=lm_selection, kwargs={"temperature": 0.0})
 exec = cognify.Model(agent_name="column_selection",
              system_prompt=system_prompt, 
              input_variables=[cognify.Input(name=input) for input in inputs], 

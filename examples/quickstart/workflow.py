@@ -4,10 +4,12 @@
 
 import dotenv
 from langchain_openai import ChatOpenAI
+from langchain_fireworks import ChatFireworks
 # Load the environment variables
 dotenv.load_dotenv()
 # Initialize the model
-model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+# model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+model = ChatFireworks(model="fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-e62eec4a", temperature=0)
 
 # Define system prompt
 system_prompt = """

@@ -51,5 +51,7 @@ class ModelOption(OptionBase):
         return base
 
 
-def model_option_factory(model_configs: list[LMConfig]):
-    return [ModelOption(cfg) for cfg in model_configs]
+def model_selection_factory(model_configs: list[LMConfig], name: str = "model_selection"):
+    options = [ModelOption(cfg) for cfg in model_configs]
+    cog = LMSelection(name, options=options)
+    return cog

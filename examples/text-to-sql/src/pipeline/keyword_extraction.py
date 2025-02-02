@@ -23,7 +23,6 @@ def keyword_extraction(task: Any, tentative_schema: Dict[str, Any], execution_hi
         "HINT": task.evidence,
         "QUESTION": task.question,
     }
-    
     logging.info("Fetching prompt, engine, and parser from PipelineManager")
     prompt, engine, parser, chain = PipelineManager().get_prompt_engine_parser()
     chain = runnable_exec
@@ -41,6 +40,5 @@ def keyword_extraction(task: Any, tentative_schema: Dict[str, Any], execution_hi
     
     keywords = response[0]
     result = {"keywords": keywords}
-    
     logging.info(f"Keywords extracted: {keywords}")
     return result

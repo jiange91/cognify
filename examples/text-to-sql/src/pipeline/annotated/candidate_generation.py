@@ -1,6 +1,7 @@
 import os
 import sys
 
+sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..'))
 sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', '..', '..', '..', '..'))
 
 from typing import Any
@@ -9,6 +10,7 @@ from cognify.hub.cogs.reasoning import ZeroShotCoT, PlanBefore
 from llm.parsers import SQLGenerationOutput, RawSqlOutputParser
 from cognify.hub.cogs import ensemble
 from langchain_core.runnables import chain
+from annotated.common import lm_selection
 
 
 system_prompt = \
@@ -51,7 +53,7 @@ output_format_instructions = \
 Please only provide a valid SQL query in a single string. Do not include any additional information or explanations.
 """
 
-lm_config = cognify.LMConfig(model="gpt-4o-mini", kwargs={"temperature": 0.0})
+lm_config = cognify.LMConfig(model=lm_selection, kwargs={"temperature": 0.0})
 exec = cognify.Model(agent_name="candidate_generation",
             system_prompt=system_prompt, 
              input_variables=[cognify.Input(name=input) for input in inputs], 

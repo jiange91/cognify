@@ -13,7 +13,7 @@ import numpy as np
 @cognify.register_data_loader
 def load_data():
     args = parse_arguments()
-    all_train = read_from_file('data/dev/ca_school.json', args)
+    all_train = read_from_file('data/dev/other_sub_sampled.json', args)
     test_set = read_from_file('data/dev/sub_sampled_bird_dev_set.json', args)
     
     # shuffle the data
@@ -30,13 +30,73 @@ def eval(stats):
     correct = any(vs['correct'] == 1 for vs in stats['counts'].values())
     return 1.0 if correct else 0.0
 
-# from cognify.hub.search import text_to_sql
+from cognify.hub.search import text_to_sql
 # search_settings = text_to_sql.create_search(opt_log_dir="cognify_opt_debit_card", evaluator_batch_size=30)
 
-from cognify.hub.search import default
-search_settings = default.create_search(
-    search_type='light',
-    n_trials=15,
-    opt_log_dir='ca_school_opt_demo',
-    evaluator_batch_size=40,
+# from cognify.hub.search import default
+# search_settings = default.create_search(
+#     search_type='light',
+#     n_trials=15,
+#     opt_log_dir='ca_school_opt_demo',
+#     evaluator_batch_size=40,
+# )
+
+from cognify.optimizer.core import driver, flow
+from cognify.llm.model import LMConfig
+from cognify.hub.cogs import reasoning, ensemble, model_selection
+from cognify.hub.cogs.common import NoChange
+from cognify.hub.cogs.fewshot import LMFewShot
+from cognify.hub.cogs.reasoning import ZeroShotCoT
+from cognify.optimizer.control_param import ControlParameter
+
+reasoning_param = reasoning.LMReasoning([NoChange(), ZeroShotCoT()])
+few_shot_params = LMFewShot(4)
+model_selection_param = model_selection.model_selection_factory(
+    [
+        LMConfig(model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-e62eec4a'),
+        LMConfig(model='gpt-4o-mini'),
+    ]
+)
+inner_opt_config = flow.OptConfig(
+    n_trials=16, # does not matter, outer will set
+)
+params = [reasoning_param, few_shot_params]
+inner_loop_config = driver.LayerConfig(
+    layer_name="inner",
+    universal_params=params,
+    opt_config=inner_opt_config,
+)
+
+def add_ensemble_option(lm_name):
+    usc_ensemble = ensemble.UniversalSelfConsistency(3, temperature=0.7)
+    ensemble_param = ensemble.ModuleEnsemble(
+        options=[NoChange(), usc_ensemble]
+    )
+    ensemble_param.module_name = lm_name
+    return ensemble_param
+
+ensemble_params = [
+    add_ensemble_option('table_selection'),
+    add_ensemble_option('candidate_generation'),
+    add_ensemble_option('revision'),
+]
+
+outer_opt_config = flow.OptConfig(
+    n_trials=4, # does not matter, HB will set
+    # use_HB_allocation=True,
+    # initial_step_budget=4,
+    frugal_eval_cost=False,
+)
+outer_loop_config = driver.LayerConfig(
+    layer_name="outer",
+    universal_params=ensemble_params,
+    opt_config=outer_opt_config,
+)
+
+# ================= Overall Control Parameter =================
+optimize_control_param = ControlParameter(
+    opt_layer_configs=[outer_loop_config, inner_loop_config],
+    opt_history_log_dir="opt_3_log",
+    evaluator_batch_size=30,
+    quality_constraint=0.99,
 )

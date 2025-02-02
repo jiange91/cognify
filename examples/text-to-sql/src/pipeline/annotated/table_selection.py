@@ -7,7 +7,7 @@ import cognify
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 from llm.parsers import TableSelectionOutputParser
-from annotated.common import use_simplifed
+from annotated.common import use_simplifed, lm_selection
 
 system_prompt = \
 """You are an expert and very smart data analyst. 
@@ -46,7 +46,7 @@ Please respond with a JSON object structured as follows:
 Only output a json as your response.
 """   
 
-lm_config = cognify.LMConfig(model="gpt-4o-mini", kwargs={"temperature": 0.0})
+lm_config = cognify.LMConfig(model=lm_selection, kwargs={"temperature": 0.0})
 exec = cognify.Model(agent_name="table_selection",
              system_prompt=system_prompt, 
              input_variables=[cognify.Input(name=input) for input in inputs], 

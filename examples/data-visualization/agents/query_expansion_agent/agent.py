@@ -33,7 +33,7 @@ class QueryExpansionAgent():
 from pydantic import BaseModel, Field
 qgen_lm_config = cognify.LMConfig(
     custom_llm_provider='openai',
-    model='gpt-4o-mini',
+    model='gpt-4o',
     kwargs= {
         'temperature': 0.0,
     }

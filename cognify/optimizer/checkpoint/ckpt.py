@@ -1,4 +1,6 @@
+import os
 import uuid
+import copy
 import json
 from typing import Any
 import logging
@@ -220,12 +222,14 @@ class LogManager:
             cls._instance._init(*args, **kwargs)
         return cls._instance
     
-    def _init(self, base_score, base_cost, base_exec_time):
+    def _init(self, log_dir, base_score, base_cost, base_exec_time):
+        self.opt_trace_log_path = os.path.join(log_dir, "opt_trace.json")
         self.layer_stats: dict[str, LayerStat] = {}
         self._glob_best_score = base_score
         self._glob_lowest_cost = base_cost
         self._glob_fastest_exec_time = base_exec_time
         self._glob_lock = threading.Lock()
+        self._opt_trace = []
     
     def register_layer(
         self, 
@@ -255,6 +259,14 @@ class LogManager:
             self._update_glob_best_score(result.reduced_score)
             self._update_glob_lowest_cost(result.reduced_price)
             self._update_glob_fastest_exec_time(result.reduced_exec_time)
+            if self.layer_stats[layer_instance].is_leaf:
+                _result_cpy = copy.deepcopy(result)
+                _result_cpy.meta = {
+                    'best_score': self._glob_best_score, 
+                    'lowest_cost': self._glob_lowest_cost, 
+                    'fastest_exec_time': self._glob_fastest_exec_time
+                }
+                self._opt_trace.append(_result_cpy.to_dict())
     
     def load_existing_logs(self, layer_instance: str):
         self.layer_stats[layer_instance].load_existing_logs()
@@ -287,7 +299,7 @@ class LogManager:
                 if GlobalOptConfig.base_exec_time is not None:
                     print(_report_exec_time_reduction(exec_time, GlobalOptConfig.base_exec_time))
                 # print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, avg exec time: {:.2f} s".format(score, price * 1000, exec_time))
-                print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}".format(score, price * 1000))
+                print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, Avg exec time: {:.2f} s".format(score, price * 1000, exec_time))
                 # print("  Applied at: {}".format(trial_log.id))
                 # logger.info("  config saved at: {}".format(log_path))
 
@@ -326,3 +338,5 @@ class LogManager:
         if self._glob_fastest_exec_time is None or exec_time < self._glob_fastest_exec_time:
             self._glob_fastest_exec_time = exec_time
     
+    def _save_opt_trace(self):
+        json.dump(self._opt_trace, open(self.opt_trace_log_path, "w+"), indent=4)

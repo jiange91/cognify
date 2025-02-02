@@ -208,6 +208,16 @@ class ModuleTransformTrace:
                 return False
         return True
 
+@dataclass
+class PatienceConfig:
+    quality_min_delta: float
+    cost_min_delta: float
+    exec_time_min_delta: float
+    n_iterations: int
+
+    def __post_init__(self):
+        if self.quality_min_delta < 0 or self.cost_min_delta < 0 or self.exec_time_min_delta < 0 or self.n_iterations < 0:
+            raise ValueError("patience values should be non-negative")
 
 @dataclass
 class OptConfig:
@@ -222,6 +232,8 @@ class OptConfig:
     use_SH_allocation: bool = field(default=False)
     prune_rate: int = field(default=2)
     initial_step_budget: int = field(default=8)
+    patience: Optional[PatienceConfig] = field(default_factory=lambda: PatienceConfig(0.02,0.05,0.05,5))
+    
 
     def finalize(self):
         if not os.path.exists(self.log_dir):
@@ -251,6 +263,8 @@ class OptConfig:
             use_HB_allocation=None,
             use_SH_allocation=None,
             prune_rate=None,
+            initial_step_budget=None,
+            patience=None,
         )
 
 

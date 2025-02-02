@@ -7,7 +7,7 @@ import cognify
 from llm.parsers import ColumnFilteringOutput
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import chain
-from annotated.common import use_simplifed
+from annotated.common import use_simplifed, lm_selection
 
 system_prompt = \
 """You are a Careful data scientist.
@@ -309,7 +309,7 @@ Example of values in the column: Dagfinn Sverre Aarskog
 
 ]
 
-lm_config = cognify.LMConfig(model="gpt-4o-mini", kwargs={"temperature": 0.0})
+lm_config = cognify.LMConfig(model=lm_selection, kwargs={"temperature": 0.0})
 exec = cognify.Model(agent_name='column_filtering',
              system_prompt=system_prompt,
              input_variables=[cognify.Input(name=input) for input in inputs],

@@ -7,7 +7,7 @@ class OpenAIModel(dspy.OpenAI):
 
     def __init__(
         self,
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-4o",
         api_key: Optional[str] = None,
         model_type: Literal["chat", "text"] = None,
         **kwargs,
