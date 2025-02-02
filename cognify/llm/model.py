@@ -441,9 +441,11 @@ class Model(Module):
         self, messages: List[APICompatibleMessage], model_kwargs: dict
     ):
         model = model_kwargs.pop("model")
+        api_msgs = self._get_api_compatible_messages(messages)
         response = litellm_completion(
-            model, self._get_api_compatible_messages(messages), model_kwargs
+            model, api_msgs, model_kwargs
         )
+        # print(api_msgs)
         return response
 
 
@@ -526,10 +528,11 @@ class StructuredModel(Model):
             )
         else:
             model = model_kwargs.pop("model")
-
+            api_msgs = self._get_api_compatible_messages(messages)
+            # print(api_msgs)
             response = litellm_completion(
-                model, 
-                self._get_api_compatible_messages(messages), 
+                model,
+                api_msgs,
                 model_kwargs, 
                 response_format=self.output_format.schema
             )

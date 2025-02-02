@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Dict, Literal, Optional
+from typing import List, Dict, Literal, Optional, Any
 import uuid
 import json
 
@@ -17,7 +17,9 @@ class Input:
 class FilledInput:
     input_variable: Input
     value: str
-
+    
+    def __post_init__(self):
+        self.value = str(self.value)
 
 @dataclass
 class TextContent:

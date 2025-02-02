@@ -35,11 +35,14 @@ def from_cognify_args(args):
         raise ValueError(f"Unknown mode: {args.mode}")
 
 
-def parse_pipeline_config_file(config_path, load_data: bool = True):
+def parse_pipeline_config_file(config_path, load_data: bool = True, load_control_param: bool = True):
     config_module = capture_module_from_fs(config_path)
 
     # get optimizer control parameters
-    control_param = ControlParameter.build_control_param(loaded_module=config_module)
+    if load_control_param:
+        control_param = ControlParameter.build_control_param(loaded_module=config_module)
+    else:
+        control_param = None
     if not load_data:
         return None, control_param
 
@@ -75,7 +78,7 @@ def optimize_routine(opt_args: OptimizationArgs):
 
 def evaluate_routine(eval_args: EvaluationArgs):
     (train_set, val_set, test_set), control_param = parse_pipeline_config_file(
-        eval_args.config
+        eval_args.config, load_control_param=eval_args.select.lower() != "nochange"
     )
     result = evaluate(
         config_id=eval_args.select,
