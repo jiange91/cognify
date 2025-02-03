@@ -402,6 +402,19 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
         hierarchy_level: int = 0,
         keep_bar: bool = False,
     ):
+        # time.sleep(3)
+        # return EvaluationResult(
+        #     ids=[],
+        #     scores=[],
+        #     prices=[],
+        #     exec_times=[],
+        #     total_eval_cost=0.0,
+        #     complete=True,
+        #     reduced_score=1,
+        #     reduced_price=1,
+        #     reduced_exec_time=1,
+        #     demos=None,
+        # )
         logger.debug(f"sys_path = {sys.path}")
 
         data, indices = self.dataset[mode]

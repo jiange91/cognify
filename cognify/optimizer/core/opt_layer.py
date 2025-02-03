@@ -174,7 +174,7 @@ class SuccessiveHalving:
             if len(self.ready_to_run) == 0:
                 break
             
-            print(f"SH next with {self.ready_to_run}, budget: {self.initial_step_budget * self.prune_rate ** i}")
+            # print(f"SH next with {self.ready_to_run}, budget: {self.initial_step_budget * self.prune_rate ** i}")
             for j in self.ready_to_run:
                 self.num_inner_trials[j] += int(self.initial_step_budget * self.prune_rate ** i)
                 self.selected_runs[j].opt_config.n_trials = int(self.initial_step_budget * self.prune_rate ** i)
@@ -188,21 +188,19 @@ class SuccessiveHalving:
                     
                 try:
                     outer_indicators = []
-                    for f in futures:
+                    not_converged = []
+                    for i, f in enumerate(futures):
                         eval_result: EvaluationResult = f.result()
+                        if not eval_result.meta.get("converged", False):
+                            not_converged.append(j)
                         outer_indicators.append((eval_result.reduced_score, eval_result.reduced_price, eval_result.reduced_exec_time))
                 except Exception as e:
                     logger.error(f"Error in SH: {e}")
                     raise
             
-            # outer_indicators = []
-            # for i in self.ready_to_run:
-            #     eval_result = self.selected_outer_runs[i](self.inner_step_budget)
-            #     outer_indicators.append((eval_result.reduced_score, eval_result.reduced_price))
-            
-            # sort by higher score, lower time, lower price
+            # not consider converged ones
             sorted_indicator_indices = sorted(
-                range(len(outer_indicators)),
+                not_converged,
                 key=lambda x: (-outer_indicators[x][0], outer_indicators[x][2], outer_indicators[x][1])
             )
             n_i =  int(len(self.selected_runs) * self.prune_rate ** -i)
@@ -269,8 +267,11 @@ class OptLayer(OptLayerInterface):
         )
         self.study: optuna.study.Study = None
         self._study_lock: threading.Lock = None
-        self._best_score = None
-        self._lowest_cost = None
+        self._local_best_score = None
+        self._local_lowest_cost = None
+        self._local_fastest_exec_time = None
+        self._patience_budget = None if self.opt_config.patience is None else self.opt_config.patience.n_iterations
+        self._converged = False
         
         self.hierarchy_level = hierarchy_level
         self.next_layer_factory = next_layer_factory
@@ -364,6 +365,7 @@ class OptLayer(OptLayerInterface):
                 reduced_price=float(0xDEADBEEF),
                 reduced_score=0,
                 reduced_exec_time=float(0xDEADBEEF),
+                meta={"converged": self._converged},
             )
             
         inner_log_ids, scores, prices, exec_times = [], [], [], []
@@ -387,6 +389,7 @@ class OptLayer(OptLayerInterface):
             reduced_score=reduced_score,
             reduced_price=reduced_price,
             reduced_exec_time=reduced_exec_time,
+            meta={"converged": self._converged},
         )
         return result
 
@@ -694,6 +697,36 @@ class OptLayer(OptLayerInterface):
             logger.error(f"Error in opt iteration: {e}")
             logger.error(traceback.format_exc())
             raise
+    
+    def if_early_stop(self, result: EvaluationResult):
+        if self.top_down_info.opt_config.patience is None:
+            return False
+        if not result.complete:
+            self._patience_budget -= 1
+            self._converged = self._patience_budget <= 0
+            return self._converged
+        impv = False
+        score_threshold = self.top_down_info.opt_config.patience.quality_min_delta
+        cost_threshold = self.top_down_info.opt_config.patience.cost_min_delta
+        time_threshold = self.top_down_info.opt_config.patience.exec_time_min_delta
+        # reset budget if any dimension is improved
+        if self._local_best_score is None or result.reduced_score >= self._local_best_score * (1 + score_threshold):
+            self._local_best_score = result.reduced_score
+            impv = True
+        if self._local_lowest_cost is None or result.reduced_price <= self._local_lowest_cost * (1 - cost_threshold):
+            self._local_lowest_cost = result.reduced_price
+            impv = True
+        if self._local_fastest_exec_time is None or result.reduced_exec_time <= self._local_fastest_exec_time * (1 - time_threshold):
+            self._local_fastest_exec_time = result.reduced_exec_time
+            impv = True
+        if impv:
+            self._patience_budget = self.top_down_info.opt_config.patience.n_iterations
+        else:
+            self._patience_budget -= 1
+        # print(f"Patience budget: {self._patience_budget}")
+        self._converged = self._patience_budget <= 0
+        return self._converged
+            
         
     def _optimize_normal(self):
         opt_config = self.top_down_info.opt_config
@@ -702,27 +735,40 @@ class OptLayer(OptLayerInterface):
                 executor.submit(self._optimize_iteration)
                 for _ in range(opt_config.n_trials)
             ]
+            visited = set()
             for f in as_completed(futures):
                 try:
                     log_id, result = f.result()
                     if result and result.complete:
                         LogManager().report_trial_result(self._id, log_id, result)
                         self._save_ckpt()
+                        visited.add(f)
+                        if self.if_early_stop(result):
+                            executor.shutdown(wait=False, cancel_futures=True)
+                            break
                     if _should_exit():
                         executor.shutdown(wait=False, cancel_futures=True)
                         break
                 except Exception as e:
                     logger.error(f"Error in evaluating task: {e}")
                     raise
+            # visit other finished trials
+            for f in futures:
+                if f not in visited and f.done() and not f.cancelled():
+                    log_id, result = f.result()
+                    if result and result.complete:
+                        LogManager().report_trial_result(self._id, log_id, result)
+                        self._save_ckpt()
     
     def _optimize_SH(self):
         opt_config = self.top_down_info.opt_config
         
         bucket_size = opt_config.throughput
-        n_bucket_iter = opt_config.n_trials // bucket_size
+        n_bucket_iter = math.ceil(opt_config.n_trials / bucket_size)
         for i in range(n_bucket_iter):
             # prepare bucket
-            proposals = [self._propose() for _ in range(bucket_size)]
+            w = min(bucket_size, opt_config.n_trials - i * bucket_size)
+            proposals = [self._propose() for _ in range(w)]
             next_layer_tdis = []
             for _, program, new_trace, log_id in proposals:
                 next_layer_tdis.append(self._prepare_eval_task(program, new_trace, log_id))
@@ -730,19 +776,23 @@ class OptLayer(OptLayerInterface):
             # optimize with SH
             _sh_routine = SuccessiveHalving(
                 prune_rate=opt_config.prune_rate,
-                num_SH_iter=len(next_layer_tdis), # simple heuristic to allow exhaustive search
+                # num_SH_iter=len(next_layer_tdis), # simple heuristic to allow exhaustive search
+                num_SH_iter=opt_config.prune_rate, # follow paper
                 initial_step_budget=opt_config.initial_step_budget,
                 hierarchy_level=self.hierarchy_level,
                 next_layer_factory=self.next_layer_factory,
                 selected_runs=next_layer_tdis,
             )
             eval_results, buget_hist = _sh_routine.execute()
+            converged = False
             for (trial, _, _, log_id), eval_result in zip(proposals, eval_results):
                 self._update(trial, eval_result, log_id)
                 if eval_result and eval_result.complete:
                     LogManager().report_trial_result(self._id, log_id, eval_result)
                     self._save_ckpt()
-            
+                    converged = converged or self.if_early_stop(eval_result)
+            if converged:
+                break
     
     def _optimize_HB(self):
         opt_config = self.top_down_info.opt_config
@@ -770,8 +820,8 @@ class OptLayer(OptLayerInterface):
                 if eval_result and eval_result.complete:
                     LogManager().report_trial_result(self._id, log_id, eval_result)
                     self._save_ckpt()
-        
-
+                    
+    
     def _optimize(self):
         opt_config = self.top_down_info.opt_config
         if opt_config.use_HB_allocation:

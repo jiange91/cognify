@@ -1,4 +1,4 @@
-import dataclasses
+from dataclasses import dataclass, field, fields
 import os
 import json
 import importlib
@@ -7,15 +7,36 @@ from typing import Optional
 from cognify.optimizer.core.flow import LayerConfig
 from cognify.optimizer.analysis.domain import DomainManagerInterface
 
-@dataclasses.dataclass
+@dataclass
 class ControlParameter:
+    """
+    ControlParameter set optimization behaviors
+    
+    Args:
+        opt_layer_configs: Config of each optimization layer
+        
+        opt_history_log_dir: path to store optimization results
+        
+        quality_constraint: minimum acceptable quality (ratio of base quality)
+        
+        train_down_sample: subsample size for training data
+        
+        val_down_sample: subsample size for validation data
+        
+        evaluator_batch_size: number of parallel input to run in evaluator
+        
+        domain_manager: helper to manage input clustering
+    """
+    
     opt_layer_configs: list[LayerConfig]
     opt_history_log_dir: str = "opt_results"
     quality_constraint: float = 1.0
     train_down_sample: int = 0
     val_down_sample: int = 0
     evaluator_batch_size: int = 10
-    domain_manager: Optional[DomainManagerInterface] = None
+    domain_manager: Optional[DomainManagerInterface] = field(default=None)
+    auto_set_layer_config: bool = False
+    total_num_trials: Optional[int] = field(default=None)
 
     @classmethod
     def from_python_profile(cls, param_path):
@@ -44,7 +65,7 @@ class ControlParameter:
             param_dict = json.load(f)
         attrs = [
             attr.name
-            for attr in dataclasses.fields(cls)
+            for attr in fields(cls)
             if attr.name not in ["opt_layer_configs"]
         ]
         opt_layer_configs = [
@@ -78,7 +99,7 @@ class ControlParameter:
 
     def to_dict(self):
         result = {}
-        for field in dataclasses.fields(self):
+        for field in fields(self):
             value = getattr(self, field.name)
             if hasattr(value, "to_dict"):  # If the field has a `to_dict` method
                 result[field.name] = value.to_dict()

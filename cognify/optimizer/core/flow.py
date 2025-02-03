@@ -5,7 +5,7 @@ import logging
 from collections import defaultdict
 import uuid
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, fields
 
 from cognify.graph.program import Module
 from cognify.hub.cogs.common import CogBase
@@ -222,7 +222,7 @@ class PatienceConfig:
 @dataclass
 class OptConfig:
     n_trials: int
-    throughput: int = field(default=2)
+    throughput: int = field(default=4)
     log_dir: str = field(default=None)
     evolve_interval: int = field(default=2)
     opt_log_path: str = field(default=None)
@@ -232,7 +232,7 @@ class OptConfig:
     use_SH_allocation: bool = field(default=False)
     prune_rate: int = field(default=2)
     initial_step_budget: int = field(default=8)
-    patience: Optional[PatienceConfig] = field(default_factory=lambda: PatienceConfig(0.02,0.05,0.05,5))
+    patience: PatienceConfig = field(default_factory=lambda: PatienceConfig(0.02,0.05,0.05,5))
     
 
     def finalize(self):
@@ -245,9 +245,9 @@ class OptConfig:
 
     def update(self, other: "OptConfig"):
         # for all None fields in self, update from other
-        for k, v in asdict(other).items():
-            if getattr(self, k) is None:
-                setattr(self, k, v)
+        for f in fields(other):
+            if getattr(self, f.name) is None:
+                setattr(self, f.name, getattr(other, f.name))
     
     @classmethod
     def _set_log_dir_for_next(cls, log_dir: str):
@@ -325,6 +325,7 @@ class LayerConfig:
         target_modules: Iterable[str] = None,
         save_ckpt_interval: int = 1,
         opt_config: Optional[OptConfig] = None,
+        expected_num_agents: Optional[int] = None,
     ):
         """Config for each optimization layer
 
@@ -341,6 +342,8 @@ class LayerConfig:
 
             opt_config (OptConfig, optional): optimization config. Defaults to None.
                 all fields not set here will be decided by the upper layer
+                
+            expected_num_agents (int, optional): expected number of llm agents. Defaults to None.
 
         """
         self.layer_name = layer_name
@@ -349,6 +352,7 @@ class LayerConfig:
         self.target_modules = target_modules
         self.save_ckpt_interval = save_ckpt_interval
         self.opt_config = opt_config
+        self.expected_num_agents = expected_num_agents
 
         if len(self.dedicate_params) + len(self.universal_params) == 0:
             raise ValueError(f"No params provided for optimization layer {layer_name}")

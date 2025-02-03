@@ -201,7 +201,7 @@ class LayerStat:
         """
         cancidates = []
         for log_id, log in self.opt_logs.items():
-            if not log.result.complete:
+            if not log.result or not log.result.complete:
                 continue
             # if not meet the quality constraint, skip
             if (
@@ -222,12 +222,12 @@ class LogManager:
             cls._instance._init(*args, **kwargs)
         return cls._instance
     
-    def _init(self, log_dir, base_score, base_cost, base_exec_time):
+    def _init(self, log_dir):
         self.opt_trace_log_path = os.path.join(log_dir, "opt_trace.json")
         self.layer_stats: dict[str, LayerStat] = {}
-        self._glob_best_score = base_score
-        self._glob_lowest_cost = base_cost
-        self._glob_fastest_exec_time = base_exec_time
+        self._glob_best_score = GlobalOptConfig.base_quality
+        self._glob_lowest_cost = GlobalOptConfig.base_price
+        self._glob_fastest_exec_time = GlobalOptConfig.base_exec_time
         self._glob_lock = threading.Lock()
         self._opt_trace = []
     

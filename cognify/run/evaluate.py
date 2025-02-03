@@ -90,12 +90,20 @@ def evaluate(
             f"no dry run result found at {dry_run_log_path}"
         )
 
+    control_param.quality_constraint = None
     opt_driver = driver.MultiLayerOptimizationDriver(
-        layer_configs=control_param.opt_layer_configs,
-        opt_log_dir=control_param.opt_history_log_dir,
-        quality_constraint=None,
-        base_quality=base_quality,
-        base_cost=base_cost,
+        control_param=control_param,
+        base_result=EvaluationResult(
+            ids=None,
+            scores=None,
+            prices=None,
+            exec_times=None,
+            total_eval_cost=None,
+            complete=True,
+            reduced_score=base_quality,
+            reduced_price=base_cost,
+            reduced_exec_time=base_exec_time,
+        )
     )
     result = opt_driver.evaluate(
         evaluator=evaluator,
@@ -124,8 +132,8 @@ def load_workflow(
         control_param = ControlParameter.from_json_profile(control_param_save_path)
 
     opt_driver = driver.MultiLayerOptimizationDriver(
-        layer_configs=control_param.opt_layer_configs,
-        opt_log_dir=control_param.opt_history_log_dir,
+        control_param=control_param,
+        base_result=None,
     )
     schema, _ = opt_driver.load(config_id)
     return schema.program

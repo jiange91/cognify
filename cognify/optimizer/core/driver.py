@@ -3,12 +3,15 @@ import json
 from typing import Union, Optional, Callable
 import logging
 import re
+import math
+import copy
 
 from cognify.optimizer.evaluator import (
     EvaluationResult,
     EvaluatorPlugin,
     EvalTask,
 )
+from cognify.optimizer.control_param import ControlParameter
 from cognify.optimizer.core.flow import TopDownInformation, LayerConfig
 from cognify.optimizer.core.opt_layer import OptLayer, GlobalOptConfig
 from cognify.optimizer.checkpoint.ckpt import LogManager, TrialLog
@@ -38,43 +41,142 @@ def get_layer_evaluator_factory(
 class MultiLayerOptimizationDriver:
     def __init__(
         self,
-        layer_configs: list[LayerConfig],
-        opt_log_dir: str,
-        quality_constraint: float = None,
-        base_quality: float = None,
-        base_cost: float = None,
-        base_exec_time: float = None,
+        control_param: ControlParameter,
+        base_result: EvaluationResult,
     ):
         """Driver for multi-layer optimization
 
-        Args:
-            layer_configs (Sequence[LayerConfig]): configs for each optimization layer
-
         NOTE: the order of the layers is from top to bottom, i.e., the last layer will run program evaluation directly while others will run layer evaluation
         """
-        self.layer_configs = layer_configs
+        if control_param.quality_constraint is None:
+            GlobalOptConfig.quality_constraint = None
+        else:
+            GlobalOptConfig.quality_constraint = control_param.quality_constraint * base_result.reduced_score
         
-        GlobalOptConfig.quality_constraint = quality_constraint
-        GlobalOptConfig.base_quality = base_quality
-        GlobalOptConfig.base_price = base_cost
-        GlobalOptConfig.base_exec_time = base_exec_time
-        _log_mng = LogManager(opt_log_dir, base_quality, base_cost, base_exec_time)
+        if base_result is not None:
+            GlobalOptConfig.base_quality = base_result.reduced_score
+            GlobalOptConfig.base_price = base_result.reduced_price
+            GlobalOptConfig.base_exec_time = base_result.reduced_exec_time
+        _log_mng = LogManager(control_param.opt_history_log_dir)
 
         # initialize optimization layers
-        self.opt_layer_factories: list[Callable] = [None] * (len(layer_configs) + 1)
+        self._set_layer_config(control_param)
+        with open(os.path.join(control_param.opt_history_log_dir, 'actual_search_layer_config.json'), 'w') as f:
+            configs = [layer_config.to_dict() for layer_config in self.layer_configs]
+            json.dump(configs, f, indent=4)
+        self.opt_layer_factories: list[Callable] = [None] * (len(self.layer_configs) + 1)
 
-        self.opt_log_dir = opt_log_dir
+        self.opt_log_dir = control_param.opt_history_log_dir
 
         # config log dir for layer opts
         # NOTE: only the top layer will be set, others are decided at runtime
         self.layer_configs[0].opt_config.log_dir = os.path.join(
-            opt_log_dir, self.layer_configs[0].layer_name
+            self.opt_log_dir, self.layer_configs[0].layer_name
         )
         # NOTE: since these will be set at runtime, we set them to None
         for layer_config in self.layer_configs[1:]:
             layer_config.opt_config.log_dir = None
             layer_config.opt_config.opt_log_path = None
             layer_config.opt_config.param_save_path = None
+        
+    def _set_layer_config(self, control_param: ControlParameter):
+        opt_layer_configs = control_param.opt_layer_configs
+        if not control_param.auto_set_layer_config:
+            self.layer_configs = opt_layer_configs
+        else:
+            # decide search space partition
+            # TODO: consider change interface to accept entire cog space instead of layer definition
+            assert len(opt_layer_configs) == 3, "Always define structure, step, weight layers"
+            assert control_param.total_num_trials is not None, "Please inform the total number of trials"
+            
+            # get Ei
+            expected_trials = []
+            dimensions = []
+            for i, layer_config in enumerate(opt_layer_configs):
+                if layer_config is None:
+                    dimensions.append(0)
+                    expected_trials.append(1)
+                    continue
+                if layer_config.universal_params:
+                    if layer_config.target_modules is None and layer_config.expected_num_agents is None:
+                        raise ValueError(
+                            "If you want to use search space auto-partition while using universal params, "
+                            "please inform the number of agents or set target module names"
+                        )
+                    num_agent = layer_config.expected_num_agents or len(layer_config.target_modules)
+                    universal_cog_space = num_agent * len(layer_config.universal_params)
+                else:
+                    universal_cog_space = 0
+                dimensions.append(universal_cog_space + len(layer_config.dedicate_params))
+                ei = math.ceil(dimensions[-1] ** 1.2)
+                expected_trials.append(max(ei, 1))
+            logger.debug(f"Expected budgets before partition: {expected_trials}")
+            
+            # search space partition
+            three_layer_budgets = math.prod(expected_trials)
+            if control_param.total_num_trials < three_layer_budgets:
+                # merge step and weight layer
+                step_layer = opt_layer_configs[1]
+                weight_layer = opt_layer_configs[2]
+                
+                # to avoid target-module conflict, transform all params to valid dedicate params
+                def _clean_params(layer: LayerConfig):
+                    if layer is None:
+                        return [], []
+                    if layer.target_modules is None:
+                        return layer.dedicate_params, layer.universal_params
+                    dedicate_params = [cog for cog in layer.dedicate_params if cog.module_name in layer.target_modules]
+                    for cog in layer.universal_params:
+                        for module_name in layer.target_modules:
+                            dcog = copy.deepcopy(cog)
+                            dcog.module_name = module_name
+                            dedicate_params.append(dcog)
+                    return dedicate_params, []
+                    
+                s_d, s_u = _clean_params(step_layer)
+                w_d, w_u = _clean_params(weight_layer)
+                if not step_layer or not weight_layer:
+                    layer_name = step_layer.layer_name if step_layer else weight_layer.layer_name
+                else:
+                    layer_name = f"{step_layer.layer_name}_and_{weight_layer.layer_name}"
+                inner_layer = LayerConfig(
+                    layer_name=layer_name,
+                    dedicate_params=s_d + w_d,
+                    universal_params=s_u + w_u,
+                )
+                opt_layer_configs = [opt_layer_configs[0], inner_layer]
+                dimensions = [dimensions[0], dimensions[1] + dimensions[2]]
+                expected_trials = [max(math.ceil(d ** 1.2), 1) for d in dimensions]
+            
+            # filter out None layer
+            opt_layer_configs = [layer for layer, dim in zip(opt_layer_configs, dimensions) if dim > 0]
+            expected_trials = [exp for exp, dim in zip(expected_trials, dimensions) if dim > 0]
+            logger.debug(f"Expected budgets after partition: {expected_trials}")
+            # search budget partition
+            B_prime = math.prod(expected_trials)
+            allocations = [0] * len(opt_layer_configs) + [1]
+            if control_param.total_num_trials >= B_prime:
+                # give each layer budget proportial to expected trials
+                for i, (exp, layer_config) in enumerate(zip(expected_trials, opt_layer_configs)):
+                    layer_config.opt_config.n_trials = int(exp * (control_param.total_num_trials / B_prime) ** (1 / len(opt_layer_configs)))
+                    allocations[i] = layer_config.opt_config.n_trials
+            else:
+                # give lower layer greedy budget
+                for i in range(len(opt_layer_configs) - 1, -1, -1):
+                    opt_layer_configs[i].opt_config.n_trials = min(
+                        expected_trials[i],
+                        int(control_param.total_num_trials / math.prod(allocations[i+1:]))
+                    )
+                    allocations[i] = opt_layer_configs[i].opt_config.n_trials
+
+            # set R for each layer
+            for i, layer_config in enumerate(opt_layer_configs):
+                # set R for each layer
+                layer_config.opt_config.initial_step_budget = math.ceil(
+                    allocations[i+1] / layer_config.opt_config.prune_rate
+                )
+            self.layer_configs = opt_layer_configs
+            
             
     def build_tiered_optimization(self, evaluator: EvaluatorPlugin):
         """Build tiered optimization from bottom to top"""
