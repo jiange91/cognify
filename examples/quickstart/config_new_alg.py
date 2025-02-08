@@ -75,9 +75,9 @@ inner_loop_config = driver.LayerConfig(
 # ================= Overall Control Parameter =================
 optimize_control_param = ControlParameter(
     opt_layer_configs=[outer_loop_config, middle_loop_config, inner_loop_config],
-    opt_history_log_dir="test_HB",
+    opt_history_log_dir="test_setup",
     evaluator_batch_size=10,
-    quality_constraint=0.98,
+    quality_constraint=None,
     auto_set_layer_config=True,
     total_num_trials=64,
 )

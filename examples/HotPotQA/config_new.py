@@ -1,5 +1,6 @@
 import cognify
 from cognify.hub.evaluators import f1_score_str
+from grid_few_shot import agent_few_shots
 
 @cognify.register_evaluator
 def answer_f1(answer: str, ground_truth: str):
@@ -21,12 +22,6 @@ def load_data_minor():
     devset = [formatting(x) for x in dataset.dev]
     return trainset, valset, devset
 
-from cognify.hub.search import default
-# search_settings = default.create_search(
-#     n_trials=20,
-#     evaluator_batch_size=50,
-# )
-
 from cognify.optimizer.core import driver, flow
 from cognify.llm.model import LMConfig
 from cognify.hub.cogs import reasoning, ensemble, model_selection
@@ -36,50 +31,42 @@ from cognify.hub.cogs.reasoning import ZeroShotCoT
 from cognify.optimizer.control_param import ControlParameter
 
 reasoning_param = reasoning.LMReasoning([NoChange(), ZeroShotCoT()])
-few_shot_params = LMFewShot(4)
-inner_opt_config = flow.OptConfig(
-    n_trials=0, # does not matter, outer will set
-)
+few_shot_params = LMFewShot(2)
 params = [reasoning_param, few_shot_params]
 inner_loop_config = driver.LayerConfig(
-    layer_name="inner",
+    layer_name="weight",
     universal_params=params,
-    opt_config=inner_opt_config,
+    expected_num_agents=3,
 )
 
 model_selection_param = model_selection.model_selection_factory(
     [
-        LMConfig(model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-f079996b', kwargs={'max_tokens': 1024}),
+        LMConfig(model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-415aeb86', kwargs={'max_tokens': 1024}),
         LMConfig(model='gpt-4o-mini', kwargs={'max_tokens': 1024}),
     ]
 )
 middle_loop_config = driver.LayerConfig(
-    layer_name="middle",
+    layer_name="step",
     universal_params=[model_selection_param],
-    opt_config=flow.OptConfig(
-        n_trials=4, # does not matter, outer will set
-        use_HB_allocation=True,
-    ),
+    expected_num_agents=3,
 )
 
 general_usc_ensemble = ensemble.UniversalSelfConsistency(3)
 general_ensemble_params = ensemble.ModuleEnsemble(
     [NoChange(), general_usc_ensemble]
 )
-outer_opt_config = flow.OptConfig(
-    n_trials=4,
-    use_SH_allocation=True,
-)
 outer_loop_config = driver.LayerConfig(
-    layer_name="outer",
+    layer_name="structure",
     universal_params=[general_ensemble_params],
-    opt_config=outer_opt_config,
+    expected_num_agents=3,
 )
 
 # ================= Overall Control Parameter =================
 optimize_control_param = ControlParameter(
-    opt_layer_configs=[outer_loop_config, middle_loop_config, inner_loop_config],
-    opt_history_log_dir="hb_with_models",
-    evaluator_batch_size=50,
-    quality_constraint=0.99,
+    opt_layer_configs=[None, middle_loop_config, inner_loop_config],
+    opt_history_log_dir="grid_compare",
+    evaluator_batch_size=20,
+    quality_constraint=1.0,
+    auto_set_layer_config=True,
+    total_num_trials=64,
 )

@@ -25,6 +25,8 @@ class ControlParameter:
         
         evaluator_batch_size: number of parallel input to run in evaluator
         
+        eval_time_out: time out for each workflow invocation
+        
         domain_manager: helper to manage input clustering
     """
     
@@ -34,6 +36,7 @@ class ControlParameter:
     train_down_sample: int = 0
     val_down_sample: int = 0
     evaluator_batch_size: int = 10
+    eval_time_out: int = 120
     domain_manager: Optional[DomainManagerInterface] = field(default=None)
     auto_set_layer_config: bool = False
     total_num_trials: Optional[int] = field(default=None)

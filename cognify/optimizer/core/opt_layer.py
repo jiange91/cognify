@@ -167,6 +167,31 @@ class SuccessiveHalving:
             hierarchy_level=self.hierarchy_level + 1,
         )
         return result
+
+    def _halving_by_order(self, indicators, not_converged, n_left):
+        sorted_indicator_indices = sorted(
+            not_converged,
+            key=lambda x: (-indicators[x][0], indicators[x][2], indicators[x][1])
+        )
+        runs_left_to_run = sorted_indicator_indices[:n_left]
+        self.ready_to_run = [self.ready_to_run[i] for i in runs_left_to_run]
+    
+    def _halving_jointly(self, indicators, not_converged, n_left):
+        # sort in each dimensions individually
+        sorted_by_score = sorted(not_converged, key=lambda x: -indicators[x][0])
+        sorted_by_cost = sorted(not_converged, key=lambda x: indicators[x][1])
+        sorted_by_exec_time = sorted(not_converged, key=lambda x: indicators[x][2])
+        # round robin select from top of each list
+        # avoid duplicates
+        runs_left_to_run = set()
+        while len(runs_left_to_run) < n_left:
+            if sorted_by_score:
+                runs_left_to_run.add(sorted_by_score.pop(0))
+            if sorted_by_cost:
+                runs_left_to_run.add(sorted_by_cost.pop(0))
+            if sorted_by_exec_time:
+                runs_left_to_run.add(sorted_by_exec_time.pop(0))
+        self.ready_to_run = [self.ready_to_run[i] for i in runs_left_to_run]
     
     
     def run_and_prune(self):
@@ -199,14 +224,10 @@ class SuccessiveHalving:
                     raise
             
             # not consider converged ones
-            sorted_indicator_indices = sorted(
-                not_converged,
-                key=lambda x: (-outer_indicators[x][0], outer_indicators[x][2], outer_indicators[x][1])
-            )
-            n_i =  int(len(self.selected_runs) * self.prune_rate ** -i)
-            n_ii = int(n_i / self.prune_rate)
-            runs_left_to_run = sorted_indicator_indices[:n_ii]
-            self.ready_to_run = [self.ready_to_run[i] for i in runs_left_to_run]
+            n =  int(len(self.selected_runs) * self.prune_rate ** -(i+1))
+            # self._halving_by_order(outer_indicators, not_converged, n)
+            self._halving_jointly(outer_indicators, not_converged, n)
+            
     
     def execute(self):
         self.run_and_prune()

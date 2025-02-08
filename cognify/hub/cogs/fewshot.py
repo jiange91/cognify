@@ -81,7 +81,8 @@ class LMFewShot(DynamicCogBase):
             )
             for i, user_option in enumerate(option_combos):
                 option_name = f"{self.module_name}_demos_user_combo_{i}"
-                self.add_option(DemoOption(option_name, list(user_option)))
+                demos = [self.demo_cache[demo_id] for demo_id in user_option]
+                self.add_option(DemoOption(option_name, demos))
 
     def _evolve(self, eval_result) -> EvolveType:
         """Update demo options given current evaluation result

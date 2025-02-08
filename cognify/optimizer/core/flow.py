@@ -232,7 +232,7 @@ class OptConfig:
     use_SH_allocation: bool = field(default=False)
     prune_rate: int = field(default=2)
     initial_step_budget: int = field(default=8)
-    patience: PatienceConfig = field(default_factory=lambda: PatienceConfig(0.02,0.05,0.05,5))
+    patience: PatienceConfig = field(default_factory=lambda: PatienceConfig(0.02,0.05,0.05,6))
     
 
     def finalize(self):

@@ -96,7 +96,7 @@ outer_loop_config = driver.LayerConfig(
 # ================= Overall Control Parameter =================
 optimize_control_param = ControlParameter(
     opt_layer_configs=[outer_loop_config, inner_loop_config],
-    opt_history_log_dir="cognify_opt_simplified_history",
+    opt_history_log_dir="opt_3_log",
     evaluator_batch_size=30,
     quality_constraint=0.99,
 )

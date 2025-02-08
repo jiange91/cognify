@@ -16,6 +16,7 @@ import queue
 import traceback
 from cognify.optimizer.utils import _cognify_tqdm as tqdm
 from cognify.optimizer.registry import get_registered_opt_score_fn
+import threading
 
 from cognify.graph.utils import get_function_kwargs
 from cognify._signal import _should_exit, _be_quiet, _stay_alert
@@ -25,6 +26,7 @@ from cognify.hub.cogs.common import CogBase
 from cognify.hub.cogs.utils import build_param
 from cognify.optimizer.plugin import OptimizerSchema, capture_module_from_fs
 from cognify.optimizer.core.flow import TopDownInformation, ModuleTransformTrace, EvaluationResult, GeneralEvaluatorInterface
+from cognify.optimizer.core.glob_config import GlobalOptConfig
 from cognify.optimizer.checkpoint import pbar_utils
 
 logger = logging.getLogger(__name__)
@@ -32,14 +34,18 @@ logger = logging.getLogger(__name__)
 def default_reduer(xs):
     return sum(xs) / len(xs)
 
-
 class TaskStatus(Enum):
     SUCCESS = 1
     INTERRUPTED = 2
     FAILED = 3
 
+
+class TaskTooLongError(Exception):
+    pass
+
 def timeout_handler(signum, frame):
-    raise TimeoutError("Task timed out")
+    """Signal handler to stop the task."""
+    raise TaskTooLongError("Received stop signal.")
 
 class EvalFn:
     def __init__(
@@ -220,9 +226,8 @@ class EvalTask:
         # directly raise interrupt signal
         _stay_alert()
         
-        # signal.signal(signal.SIGALRM, timeout_handler)
-        # signal.alarm(60)
-        sema.acquire()
+        signal.signal(signal.SIGTERM, timeout_handler)
+        # sema.acquire()
         try:
             # print(f"Task {task_index} start")
             if input is not None and not isinstance(input, dict):
@@ -254,12 +259,12 @@ class EvalTask:
             score = evaluator.score(state)
             # print(f"Task {task_index} finished success")
             # signal.alarm(0)  # Cancel the alarm after success
-        except TimeoutError:
-            # print(f"Task {task_index} timed out")
-            end_time = time.time()  # this isn't accurate if the process is interrupted
-            status = TaskStatus.FAILED
         except KeyboardInterrupt:
             status = TaskStatus.INTERRUPTED
+        except TaskTooLongError:
+            logger.error(f"Task {task_index} took too long to finish. Automatic score of 0")
+            end_time = time.time()
+            status = TaskStatus.FAILED
         except Exception as e:
             # catch any errors thrown during the workflow and treat as an invalid result by scoring 0
             # Note: scoring 0 may be problematic if the evaluator's range includes negative numbers
@@ -341,9 +346,13 @@ class EvalTask:
             aggregated_proposals=tdi.module_ttrace.aggregated_proposals,
             trace_back=tdi.trace_back,
         )
+        
 
-
-
+def monitor_worker_timeout(process, start_time, timeout):
+    while process.is_alive():
+        time.sleep(1)
+        if time.time() - start_time > timeout:
+            process.terminate()
 
 
 class EvaluatorPlugin(GeneralEvaluatorInterface):
@@ -458,21 +467,44 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
             )
 
         results = []
-        
+        n_visited = 0
+        all_monitors = []
         for task_index, pair_idx in enumerate(indices):
             if _should_exit():
                 break
-            
+
+            # check for result updates
+            while True:
+                try:
+                    # qsize = result_q.qsize()
+                    # print(f"qsize = {qsize}")
+                    eval_result = result_q.get(block=False)
+                    n_visited += 1
+                    if not eval_result[1]:
+                        continue
+                    results.append(eval_result)
+                    if show_process:
+                        update_pbar(eval_result)
+                except queue.Empty:
+                    break
+
             input, label = data[pair_idx]
+            sema.acquire()
+            # print(f"Task {task_index} scheduled")
             worker = mp.Process(
                 target=task.evaluate_program,
                 args=(self._evaluator, input, label, task_index, sema, result_q),
             )
             worker.start()
+            monitoring_thread = threading.Thread(
+                target=monitor_worker_timeout, args=(worker, time.time(), GlobalOptConfig.eval_time_out)
+            )
+            monitoring_thread.start()
+            all_monitors.append(monitoring_thread)
             all_workers.append(worker)
 
         # print(f"waiting for {len(all_workers) - n_visited} workers to finish")
-        for i in range(len(all_workers)):
+        for i in range(len(all_workers) - n_visited):
             eval_result = result_q.get()
             if not eval_result[1]:
                 continue
@@ -484,6 +516,9 @@ class EvaluatorPlugin(GeneralEvaluatorInterface):
 
         for worker in all_workers:
             worker.join()
+        
+        for monitor in all_monitors:
+            monitor.join()
 
         if not results:
             return EvaluationResult(

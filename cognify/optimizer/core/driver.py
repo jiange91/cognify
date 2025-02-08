@@ -48,6 +48,7 @@ class MultiLayerOptimizationDriver:
 
         NOTE: the order of the layers is from top to bottom, i.e., the last layer will run program evaluation directly while others will run layer evaluation
         """
+        GlobalOptConfig.eval_time_out = control_param.eval_time_out
         if control_param.quality_constraint is None:
             GlobalOptConfig.quality_constraint = None
         else:
@@ -92,9 +93,11 @@ class MultiLayerOptimizationDriver:
             # get Ei
             expected_trials = []
             dimensions = []
+            option_sizes = []
             for i, layer_config in enumerate(opt_layer_configs):
                 if layer_config is None:
                     dimensions.append(0)
+                    option_sizes.append(0)
                     expected_trials.append(1)
                     continue
                 if layer_config.universal_params:
@@ -105,10 +108,14 @@ class MultiLayerOptimizationDriver:
                         )
                     num_agent = layer_config.expected_num_agents or len(layer_config.target_modules)
                     universal_cog_space = num_agent * len(layer_config.universal_params)
+                    universal_option_size = num_agent * sum(len(param.options) for param in layer_config.universal_params)
                 else:
                     universal_cog_space = 0
+                    universal_option_size = 0
                 dimensions.append(universal_cog_space + len(layer_config.dedicate_params))
-                ei = math.ceil(dimensions[-1] ** 1.2)
+                dedicate_option_size = sum(len(param.options) for param in layer_config.dedicate_params)
+                option_sizes.append(universal_option_size + dedicate_option_size)
+                ei = math.ceil(max(dimensions[-1] ** 1.2, option_sizes[-1]))
                 expected_trials.append(max(ei, 1))
             logger.debug(f"Expected budgets before partition: {expected_trials}")
             
@@ -146,7 +153,8 @@ class MultiLayerOptimizationDriver:
                 )
                 opt_layer_configs = [opt_layer_configs[0], inner_layer]
                 dimensions = [dimensions[0], dimensions[1] + dimensions[2]]
-                expected_trials = [max(math.ceil(d ** 1.2), 1) for d in dimensions]
+                option_sizes = [option_sizes[0], option_sizes[1] + option_sizes[2]]
+                expected_trials = [max(math.ceil(d ** 1.2), o, 1) for d, o in zip(dimensions, option_sizes)]
             
             # filter out None layer
             opt_layer_configs = [layer for layer, dim in zip(opt_layer_configs, dimensions) if dim > 0]

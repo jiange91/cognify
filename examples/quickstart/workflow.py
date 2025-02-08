@@ -8,8 +8,8 @@ from langchain_fireworks import ChatFireworks
 # Load the environment variables
 dotenv.load_dotenv()
 # Initialize the model
-# model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-model = ChatFireworks(model="fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-e62eec4a", temperature=0)
+model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+# model = ChatFireworks(model="fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-e62eec4a", temperature=0)
 
 # Define system prompt
 system_prompt = """
@@ -36,9 +36,11 @@ def doc_str(docs):
     return "\n".join(docs)
 
 import cognify
+import time
 
 @cognify.register_workflow
 def qa_workflow(question, documents):
+    # time.sleep(100)
     format_doc = doc_str(documents)
     answer = qa_agent.invoke({"question": question, "documents": format_doc}).content
     return {'answer': answer}

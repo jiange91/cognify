@@ -73,6 +73,12 @@ def add_pbar(
     )
     _pbar_pool[name] = (indent, position, pbar)
 
+def add_normal_progress(
+    name: str,
+):
+    _, _, pbar = _pbar_pool[name]
+    pbar.update(1)
+
 def close_pbar(name: str):
     if name not in _pbar_pool:
         raise ValueError(f"pbar with name {name} does not exist")
