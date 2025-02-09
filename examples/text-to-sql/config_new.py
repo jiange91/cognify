@@ -19,7 +19,7 @@ def load_data():
     # shuffle the data
     # all_train = np.random.permutation(all_train).tolist()
     # return all_train[:100], all_train[100:], test_set[:10]
-    return all_train, None, test_set
+    return test_set, None, test_set
 
 
 @cognify.register_evaluator
@@ -49,24 +49,35 @@ from cognify.hub.cogs.fewshot import LMFewShot
 from cognify.hub.cogs.reasoning import ZeroShotCoT
 from cognify.optimizer.control_param import ControlParameter
 
+# weight
 reasoning_param = reasoning.LMReasoning([NoChange(), ZeroShotCoT()])
-few_shot_params = LMFewShot(4)
-model_selection_param = model_selection.model_selection_factory(
-    [
-        LMConfig(model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-e62eec4a'),
-        LMConfig(model='gpt-4o-mini'),
-    ]
-)
-inner_opt_config = flow.OptConfig(
-    n_trials=16, # does not matter, outer will set
-)
-params = [reasoning_param, few_shot_params]
+few_shot_params = [
+    LMFewShot(4, module_name="table_selection"),
+    LMFewShot(4, module_name="candidate_generation"),
+    LMFewShot(4, module_name="revision"),
+]
+params = [reasoning_param]
 inner_loop_config = driver.LayerConfig(
-    layer_name="inner",
+    layer_name="weight",
+    dedicate_params=few_shot_params,
     universal_params=params,
-    opt_config=inner_opt_config,
+    expected_num_agents=6,
 )
 
+# step
+# model_selection_param = model_selection.model_selection_factory(
+#     [
+#         LMConfig(model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-08af73ba'),
+#         LMConfig(model='gpt-4o-mini'),
+#     ]
+# )
+# middle_loop_config = driver.LayerConfig(
+#     layer_name="step",
+#     universal_params=[model_selection_param],
+#     expected_num_agents=6,
+# )
+
+# structure
 def add_ensemble_option(lm_name):
     usc_ensemble = ensemble.UniversalSelfConsistency(3, temperature=0.7)
     ensemble_param = ensemble.ModuleEnsemble(
@@ -81,22 +92,19 @@ ensemble_params = [
     add_ensemble_option('revision'),
 ]
 
-outer_opt_config = flow.OptConfig(
-    n_trials=4, # does not matter, HB will set
-    # use_HB_allocation=True,
-    # initial_step_budget=4,
-    frugal_eval_cost=False,
-)
 outer_loop_config = driver.LayerConfig(
     layer_name="outer",
-    universal_params=ensemble_params,
-    opt_config=outer_opt_config,
+    dedicate_params=ensemble_params,
+    expected_num_agents=6,
 )
 
 # ================= Overall Control Parameter =================
 optimize_control_param = ControlParameter(
-    opt_layer_configs=[outer_loop_config, inner_loop_config],
-    opt_history_log_dir="opt_3_log",
+    opt_layer_configs=[outer_loop_config, None, inner_loop_config],
+    opt_history_log_dir="new_alg",
     evaluator_batch_size=30,
     quality_constraint=0.99,
+    auto_set_layer_config=True,
+    total_num_trials=128,
+    eval_time_out=300,
 )

@@ -107,6 +107,8 @@ def optimize(
     if force:
         # clear the directory
         for f in os.listdir(control_param.opt_history_log_dir):
+            if f == "dry_run_train.json":
+                continue
             file_path = os.path.join(control_param.opt_history_log_dir, f)
             if os.path.isfile(file_path):
                 os.unlink(file_path)

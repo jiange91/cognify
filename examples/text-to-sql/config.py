@@ -89,7 +89,7 @@ outer_opt_config = flow.OptConfig(
 )
 outer_loop_config = driver.LayerConfig(
     layer_name="outer",
-    universal_params=ensemble_params,
+    dedicate_params=ensemble_params,
     opt_config=outer_opt_config,
 )
 

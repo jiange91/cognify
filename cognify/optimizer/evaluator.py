@@ -262,7 +262,7 @@ class EvalTask:
         except KeyboardInterrupt:
             status = TaskStatus.INTERRUPTED
         except TaskTooLongError:
-            logger.error(f"Task {task_index} took too long to finish. Automatic score of 0")
+            # logger.error(f"Task {task_index} took too long to finish. Automatic score of 0")
             end_time = time.time()
             status = TaskStatus.FAILED
         except Exception as e:

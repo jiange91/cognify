@@ -36,7 +36,7 @@ class ControlParameter:
     train_down_sample: int = 0
     val_down_sample: int = 0
     evaluator_batch_size: int = 10
-    eval_time_out: int = 120
+    eval_time_out: int = 180
     domain_manager: Optional[DomainManagerInterface] = field(default=None)
     auto_set_layer_config: bool = False
     total_num_trials: Optional[int] = field(default=None)
