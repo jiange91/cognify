@@ -832,10 +832,46 @@ class OptLayer(OptLayerInterface):
                 self._update(trial, eval_result, log_id)
                 if eval_result and eval_result.complete:
                     pbar.update_status(self._local_best_score, self._local_lowest_cost, self._local_fastest_exec_time, self.opt_cost)
-                    self._save_ckpt()
+                    self._save_opt_ckpt()
                     converged = converged or self.if_early_stop(eval_result)
             if converged:
                 break
+    
+    def _optimize_HB(self):
+        opt_config = self.top_down_info.opt_config
+        
+        s_max = int(math.log(opt_config.initial_step_budget, opt_config.prune_rate))
+        for s in range(s_max, -1, -1):
+            bucket_size = int((s_max + 1) / (s + 1) * opt_config.prune_rate ** s)
+            # prepare bucket
+            proposals = [self._propose() for _ in range(bucket_size)]
+            next_layer_tdis = []
+            for _, program, new_trace, log_id in proposals:
+                next_layer_tdis.append(self._prepare_eval_task(program, new_trace, log_id))
+            initial_budget = int(opt_config.initial_step_budget * opt_config.prune_rate ** -s)
+            _sh_routine = SuccessiveHalving(
+                prune_rate=opt_config.prune_rate,
+                num_SH_iter=s+1,
+                initial_step_budget=initial_budget,
+                hierarchy_level=self.hierarchy_level,
+                next_layer_factory=self.next_layer_factory,
+                selected_runs=next_layer_tdis,
+            )
+            eval_results, buget_hist = _sh_routine.execute()
+            for (trial, _, _, log_id), eval_result in zip(proposals, eval_results):
+                self._update(trial, eval_result, log_id)
+                if eval_result and eval_result.complete:
+                    pbar.update_status(self._local_best_score, self._local_lowest_cost, self._local_fastest_exec_time, self.opt_cost)
+                    self._save_opt_ckpt()
+                        
+    def _optimize(self):
+        opt_config = self.top_down_info.opt_config
+        if opt_config.use_HB_allocation:
+            self._optimize_HB()
+        elif opt_config.use_SH_allocation:
+            self._optimize_SH()
+        else:
+            self._optimize_normal()
     
     def _optimize_HB(self):
         opt_config = self.top_down_info.opt_config
