@@ -32,8 +32,7 @@ class QueryExpansionAgent():
 
 from pydantic import BaseModel, Field
 qgen_lm_config = cognify.LMConfig(
-    custom_llm_provider='openai',
-    model='gpt-4o',
+    model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-33abb831',
     kwargs= {
         'temperature': 0.0,
     }
@@ -43,4 +42,4 @@ query_expansion_agent = cognify.Model(agent_name='query expansion', system_promp
                               input_variables=[cognify.Input(name='query')],
                               output=cognify.OutputLabel(name='expanded_query'),
                                 lm_config=qgen_lm_config)
-# ZeroShotCoT.direct_apply(query_expansion_agent)
+ZeroShotCoT.direct_apply(query_expansion_agent)

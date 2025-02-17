@@ -65,6 +65,7 @@ class MultiLayerOptimizationDriver:
         with open(os.path.join(control_param.opt_history_log_dir, 'actual_search_layer_config.json'), 'w') as f:
             configs = [layer_config.to_dict() for layer_config in self.layer_configs]
             json.dump(configs, f, indent=4)
+        # exit()
         self.opt_layer_factories: list[Callable] = [None] * (len(self.layer_configs) + 1)
 
         self.opt_log_dir = control_param.opt_history_log_dir

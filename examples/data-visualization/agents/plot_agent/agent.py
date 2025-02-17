@@ -203,8 +203,7 @@ Cognify Implementation
 from pydantic import BaseModel, Field
 
 lm_config = cognify.LMConfig(
-    custom_llm_provider='openai',
-    model='gpt-4o',
+    model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-33abb831',
     kwargs= {
         'temperature': 0.0,
     }

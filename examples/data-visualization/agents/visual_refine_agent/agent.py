@@ -29,7 +29,6 @@ Carefully read and analyze the user query to understand the specific requirement
 You don't need to provide the complete code, just be very explicit in what changes are needed and how to make them.
 """
 visual_refine_lm_config = cognify.LMConfig(
-    custom_llm_provider='openai',
     model='gpt-4o',
     kwargs= {
         'temperature': 0.0,

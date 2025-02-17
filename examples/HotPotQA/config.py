@@ -16,7 +16,7 @@ def load_data_minor():
     from dspy.datasets.hotpotqa import HotPotQA
     dataset = HotPotQA(train_seed=1, train_size=150, eval_seed=2023, dev_size=200, test_size=0)
     
-    trainset = [formatting(x) for x in dataset.train[0:100]]
+    trainset = [formatting(x) for x in dataset.train[0:10]]
     valset = [formatting(x) for x in dataset.train[100:150]]
     devset = [formatting(x) for x in dataset.dev]
     return trainset, valset, devset

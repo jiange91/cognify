@@ -51,34 +51,23 @@ from cognify.optimizer.control_param import ControlParameter
 
 reasoning_param = reasoning.LMReasoning([NoChange(), ZeroShotCoT()])
 few_shot_params = LMFewShot(4)
+model_selection_param = model_selection.model_selection_factory(
+    [
+        LMConfig(model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-4917141b'),
+        LMConfig(model='gpt-4o-mini'),
+    ]
+)
 inner_opt_config = flow.OptConfig(
     n_trials=16, # does not matter, outer will set
     throughput=2,
 )
-params = [reasoning_param, few_shot_params]
+params = [reasoning_param, few_shot_params, model_selection_param]
 inner_loop_config = driver.LayerConfig(
     layer_name="inner",
     universal_params=params,
     opt_config=inner_opt_config,
 )
 
-
-model_selection_param = model_selection.model_selection_factory(
-    [
-        LMConfig(model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-320ef156'),
-        LMConfig(model='gpt-4o-mini'),
-    ]
-)
-params = [model_selection_param]
-
-mid_opt_config = flow.OptConfig(
-    n_trials=8, # does not matter, outer will set
-)
-mid_loop_config = driver.LayerConfig(
-    layer_name="mid",
-    universal_params=params,
-    opt_config=mid_opt_config,
-)
 def add_ensemble_option(lm_name):
     usc_ensemble = ensemble.UniversalSelfConsistency(3, temperature=0.7)
     ensemble_param = ensemble.ModuleEnsemble(
@@ -94,10 +83,8 @@ ensemble_params = [
 ]
 
 outer_opt_config = flow.OptConfig(
-    n_trials=4, # does not matter, HB will set
-    # use_HB_allocation=True,
-    # initial_step_budget=4,
-    frugal_eval_cost=False,
+    n_trials=4,
+    throughput=2,
 )
 outer_loop_config = driver.LayerConfig(
     layer_name="outer",
@@ -107,9 +94,9 @@ outer_loop_config = driver.LayerConfig(
 
 # ================= Overall Control Parameter =================
 optimize_control_param = ControlParameter(
-    opt_layer_configs=[inner_loop_config],
-    opt_history_log_dir="one_layer_test",
-    evaluator_batch_size=15,
+    opt_layer_configs=[outer_loop_config, inner_loop_config],
+    opt_history_log_dir="b64_l2_4_14",
+    evaluator_batch_size=10,
     quality_constraint=1.00,
-    eval_time_out=240,
+    eval_time_out=180,
 )

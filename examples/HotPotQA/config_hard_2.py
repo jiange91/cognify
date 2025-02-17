@@ -32,28 +32,29 @@ from cognify.optimizer.control_param import ControlParameter
 
 reasoning_param = reasoning.LMReasoning([NoChange(), ZeroShotCoT()])
 few_shot_params = LMFewShot(2)
-params = [reasoning_param, few_shot_params]
+model_selection_param = model_selection.model_selection_factory(
+    [
+        LMConfig(model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-33abb831', kwargs={'max_tokens': 1024}),
+        LMConfig(model='gpt-4o-mini', kwargs={'max_tokens': 1024}),
+    ]
+)
+params = [reasoning_param, few_shot_params, model_selection_param]
+inner_opt_config = flow.OptConfig(
+    n_trials=32,
+)
 inner_loop_config = driver.LayerConfig(
     layer_name="weight",
     universal_params=params,
     expected_num_agents=3,
-)
-
-model_selection_param = model_selection.model_selection_factory(
-    [
-        LMConfig(model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2', kwargs={'max_tokens': 1024}),
-        LMConfig(model='gpt-4o-mini', kwargs={'max_tokens': 1024}),
-    ]
-)
-middle_loop_config = driver.LayerConfig(
-    layer_name="step",
-    universal_params=[model_selection_param],
-    expected_num_agents=3,
+    opt_config=inner_opt_config,
 )
 
 general_usc_ensemble = ensemble.UniversalSelfConsistency(3)
 general_ensemble_params = ensemble.ModuleEnsemble(
     [NoChange(), general_usc_ensemble]
+)
+outer_opt_config = flow.OptConfig(
+    n_trials=4,
 )
 outer_loop_config = driver.LayerConfig(
     layer_name="structure",
@@ -63,9 +64,9 @@ outer_loop_config = driver.LayerConfig(
 
 # ================= Overall Control Parameter =================
 optimize_control_param = ControlParameter(
-    opt_layer_configs=[outer_loop_config, middle_loop_config, inner_loop_config],
-    opt_history_log_dir="low_budget_3_layer",
-    evaluator_batch_size=50,
+    opt_layer_configs=[inner_loop_config],
+    opt_history_log_dir="input_sense_100",
+    evaluator_batch_size=20,
     quality_constraint=1.0,
     # auto_set_layer_config=True,
     # total_num_trials=4,

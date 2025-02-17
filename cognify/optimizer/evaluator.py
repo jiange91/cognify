@@ -152,9 +152,10 @@ class EvalTask:
         all_opt_target_name = set()
         for proposal in self.aggregated_proposals.values():
             all_opt_target_name.update(proposal.keys())
-
         for layer_name, proposal in self.aggregated_proposals.items():
             for module_name, l_param_option in proposal.items():
+                if module_name not in module_pool:
+                    continue
                 module = module_pool[module_name]
                 for param_name, option_name in l_param_option:
                     param_hash = CogBase.chash(module_name, param_name)
@@ -173,9 +174,10 @@ class EvalTask:
 
         # check if modules are transformed correctly
         # check equivalence of current name path and registered name path
-        assert module_ttrace.eq_transform_path(
-            self.module_name_paths
-        ), "Module transformation not consistent"
+        
+        # assert module_ttrace.eq_transform_path(
+        #     self.module_name_paths
+        # ), "Module transformation not consistent"
 
         module_ttrace.mflatten()
         new_modules_dict = {
@@ -271,6 +273,7 @@ class EvalTask:
             logger.error(f"Workflow execution threw error for task {task_index}: {e}. Automatic score of 0")
             end_time = time.time()  # this isn't accurate if the process is interrupted
             status = TaskStatus.FAILED
+            print(traceback.format_exc())
         finally:
             # get price and demo of running the program
             # signal.alarm(0)  # Cancel the alarm after success

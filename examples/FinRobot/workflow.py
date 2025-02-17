@@ -8,7 +8,7 @@ import cognify
 
 dotenv.load_dotenv()
 
-lm_selection_ori = 'gpt-4o'
+lm_selection_ori = 'gpt-4o-mini'
 lm_config = cognify.LMConfig(model=lm_selection_ori, kwargs={"temperature": 0.0})
 
 def format_history(history: list[str]):

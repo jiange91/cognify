@@ -1,0 +1,81 @@
+{'qa_agent': [('ensemble', 'NoChange')]}
+{'qa_agent': [('reasoning', 'NoChange'), ('model_selection', 'None_gpt-4o-mini'), ('few_shot', 'NoChange')]}
+---> Eval in  | (avg score: 0.00, avg cost@1000: $0.00, avg exec: 0.00 s) | Total Evaluation Cost: $0.00:   0%|          | 0/5 [00:00<?, ?it/s]---> Eval in  | (avg score: 0.00, avg cost@1000: $0.08, avg exec: 1.43 s) | Total Evaluation Cost: $0.00:   0%|          | 0/5 [00:01<?, ?it/s]---> Eval in  | (avg score: 0.00, avg cost@1000: $0.08, avg exec: 1.43 s) | Total Evaluation Cost: $0.00:  20%|██        | 1/5 [00:01<00:06,  1.63s/it]---> Eval in  | (avg score: 0.08, avg cost@1000: $0.09, avg exec: 1.44 s) | Total Evaluation Cost: $0.00:  20%|██        | 1/5 [00:03<00:06,  1.63s/it]---> Eval in  | (avg score: 0.08, avg cost@1000: $0.09, avg exec: 1.44 s) | Total Evaluation Cost: $0.00:  40%|████      | 2/5 [00:03<00:04,  1.63s/it]---> Eval in  | (avg score: 0.13, avg cost@1000: $0.07, avg exec: 1.26 s) | Total Evaluation Cost: $0.00:  40%|████      | 2/5 [00:04<00:04,  1.63s/it]---> Eval in  | (avg score: 0.13, avg cost@1000: $0.07, avg exec: 1.26 s) | Total Evaluation Cost: $0.00:  60%|██████    | 3/5 [00:04<00:02,  1.38s/it]---> Eval in  | (avg score: 0.16, avg cost@1000: $0.09, avg exec: 1.24 s) | Total Evaluation Cost: $0.00:  60%|██████    | 3/5 [00:05<00:02,  1.38s/it]---> Eval in  | (avg score: 0.16, avg cost@1000: $0.09, avg exec: 1.24 s) | Total Evaluation Cost: $0.00:  80%|████████  | 4/5 [00:05<00:01,  1.38s/it]---> Eval in  | (avg score: 0.15, avg cost@1000: $0.09, avg exec: 1.13 s) | Total Evaluation Cost: $0.00:  80%|████████  | 4/5 [00:06<00:01,  1.38s/it]---> Eval in  | (avg score: 0.15, avg cost@1000: $0.09, avg exec: 1.13 s) | Total Evaluation Cost: $0.00: 100%|██████████| 5/5 [00:06<00:00,  1.18s/it]                                                                                                                                                       {'qa_agent': [('ensemble', 'NoChange')]}
+{'qa_agent': [('reasoning', 'ZeroShotCoT'), ('model_selection', 'None_gpt-4o-mini'), ('few_shot', 'NoChange')]}
+---> Eval in  | (avg score: 0.00, avg cost@1000: $0.00, avg exec: 0.00 s) | Total Evaluation Cost: $0.00:   0%|          | 0/5 [00:00<?, ?it/s]---> Eval in  | (avg score: 0.00, avg cost@1000: $0.31, avg exec: 3.82 s) | Total Evaluation Cost: $0.00:   0%|          | 0/5 [00:04<?, ?it/s]---> Eval in  | (avg score: 0.00, avg cost@1000: $0.31, avg exec: 3.82 s) | Total Evaluation Cost: $0.00:  20%|██        | 1/5 [00:04<00:16,  4.01s/it]---> Eval in  | (avg score: 0.08, avg cost@1000: $0.31, avg exec: 4.17 s) | Total Evaluation Cost: $0.00:  20%|██        | 1/5 [00:08<00:16,  4.01s/it]---> Eval in  | (avg score: 0.08, avg cost@1000: $0.31, avg exec: 4.17 s) | Total Evaluation Cost: $0.00:  40%|████      | 2/5 [00:08<00:13,  4.42s/it]---> Eval in  | (avg score: 0.12, avg cost@1000: $0.27, avg exec: 3.88 s) | Total Evaluation Cost: $0.00:  40%|████      | 2/5 [00:12<00:13,  4.42s/it]---> Eval in  | (avg score: 0.12, avg cost@1000: $0.27, avg exec: 3.88 s) | Total Evaluation Cost: $0.00:  60%|██████    | 3/5 [00:12<00:07,  3.99s/it]---> Eval in  | (avg score: 0.16, avg cost@1000: $0.29, avg exec: 4.21 s) | Total Evaluation Cost: $0.00:  60%|██████    | 3/5 [00:17<00:07,  3.99s/it]---> Eval in  | (avg score: 0.16, avg cost@1000: $0.29, avg exec: 4.21 s) | Total Evaluation Cost: $0.00:  80%|████████  | 4/5 [00:17<00:04,  4.54s/it]---> Eval in  | (avg score: 0.15, avg cost@1000: $0.28, avg exec: 4.10 s) | Total Evaluation Cost: $0.00:  80%|████████  | 4/5 [00:21<00:04,  4.54s/it]---> Eval in  | (avg score: 0.15, avg cost@1000: $0.28, avg exec: 4.10 s) | Total Evaluation Cost: $0.00: 100%|██████████| 5/5 [00:21<00:00,  4.28s/it]                                                                                                                                                       {'qa_agent': [('ensemble', 'universal_self_consistency')]}
+{'qa_agent_sampler_0': [('reasoning', 'ZeroShotCoT'), ('model_selection', 'None_gpt-4o-mini'), ('few_shot', 'NoChange')], 'qa_agent_sampler_1': [('reasoning', 'NoChange'), ('model_selection', 'None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-33abb831'), ('few_shot', 'NoChange')], 'qa_agent_sampler_2': [('reasoning', 'ZeroShotCoT'), ('model_selection', 'None_gpt-4o-mini'), ('few_shot', 'NoChange')], 'qa_agent_aggregator': [('reasoning', 'NoChange'), ('model_selection', 'None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-33abb831'), ('few_shot', 'NoChange')]}
+---> Eval in  | (avg score: 0.00, avg cost@1000: $0.00, avg exec: 0.00 s) | Total Evaluation Cost: $0.00:   0%|          | 0/5 [00:00<?, ?it/s][ERROR 2025-02-10 04:14:56] Error in qa_agent_sampler_1: litellm.NotFoundError: NotFoundError: Fireworks_aiException - Error code: 404 - {'error': 'Model not found, inaccessible, and/or not deployed'}
+Traceback (most recent call last):
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/llms/OpenAI/openai.py", line 854, in completion
+    raise e
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/llms/OpenAI/openai.py", line 790, in completion
+    self.make_sync_openai_chat_completion_request(
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/llms/OpenAI/openai.py", line 649, in make_sync_openai_chat_completion_request
+    raise e
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/llms/OpenAI/openai.py", line 631, in make_sync_openai_chat_completion_request
+    raw_response = openai_client.chat.completions.with_raw_response.create(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/openai/_legacy_response.py", line 356, in wrapped
+    return cast(LegacyAPIResponse[R], func(*args, **kwargs))
+                                      ^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/openai/_utils/_utils.py", line 274, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/openai/resources/chat/completions.py", line 815, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/openai/_base_client.py", line 1277, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/openai/_base_client.py", line 954, in request
+    return self._request(
+           ^^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/openai/_base_client.py", line 1058, in _request
+    raise self._make_status_error_from_response(err.response) from None
+openai.NotFoundError: Error code: 404 - {'error': 'Model not found, inaccessible, and/or not deployed'}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/main.py", line 1597, in completion
+    raise e
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/main.py", line 1570, in completion
+    response = openai_chat_completions.completion(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/llms/OpenAI/openai.py", line 864, in completion
+    raise OpenAIError(
+litellm.llms.OpenAI.openai.OpenAIError: Error code: 404 - {'error': 'Model not found, inaccessible, and/or not deployed'}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/data/ssd2/zijian/cognify/cognify/graph/program.py", line 537, in exec_module
+    module.invoke(statep)
+  File "/mnt/data/ssd2/zijian/cognify/cognify/llm/model.py", line 333, in invoke
+    result = self.forward(
+             ^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/cognify/cognify/llm/model.py", line 380, in forward
+    result = _local_forward(_self, messages, inputs, model_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/cognify/cognify/llm/model.py", line 58, in _local_forward
+    response = _local_lm._forward(messages, model_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/cognify/cognify/llm/model.py", line 445, in _forward
+    response = litellm_completion(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/cognify/cognify/llm/litellm_wrapper.py", line 23, in litellm_completion
+    response = completion(
+               ^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/utils.py", line 1013, in wrapper
+    raise e
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/utils.py", line 903, in wrapper
+    result = original_function(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/main.py", line 3009, in completion
+    raise exception_type(
+          ^^^^^^^^^^^^^^^
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py", line 2116, in exception_type
+    raise e
+  File "/mnt/data/ssd2/zijian/test_cognify/lib/python3.11/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py", line 352, in exception_type
+    raise NotFoundError(
+litellm.exceptions.NotFoundError: litellm.NotFoundError: NotFoundError: Fireworks_aiException - Error code: 404 - {'error': 'Model not found, inaccessible, and/or not deployed'}

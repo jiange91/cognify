@@ -1,0 +1,257 @@
+Trial - step_3.weight_2
+Log at: 16_budget_3_layer/step/step_trial_3/opt_logs.json
+  Quality improves by 155%  Cost is 0.72x original  Execution time is 1.06x originalQuality: 0.586, Cost per 1K invocation: $0.26, Avg exec time: 3.15 s
+********** Detailed Optimization Trace **********
+
+========== Layer: step ==========
+
+  >>> Module: generate_answer <<<
+
+    - Parameter: <cognify.hub.cogs.model_selection.LMSelection>
+      Applied Option: None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+      Transformation Details:
+        None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+
+  >>> Module: generate_query_0 <<<
+
+    - Parameter: <cognify.hub.cogs.model_selection.LMSelection>
+      Applied Option: None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+      Transformation Details:
+        None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+
+  >>> Module: generate_query_1 <<<
+
+    - Parameter: <cognify.hub.cogs.model_selection.LMSelection>
+      Applied Option: None_gpt-4o-mini
+      Transformation Details:
+        None_gpt-4o-mini
+
+==================================================
+
+========== Layer: weight ==========
+
+  >>> Module: generate_answer <<<
+
+    - Parameter: <cognify.hub.cogs.reasoning.LMReasoning>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+    - Parameter: <cognify.hub.cogs.fewshot.LMFewShot>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+  >>> Module: generate_query_0 <<<
+
+    - Parameter: <cognify.hub.cogs.reasoning.LMReasoning>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+    - Parameter: <cognify.hub.cogs.fewshot.LMFewShot>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+  >>> Module: generate_query_1 <<<
+
+    - Parameter: <cognify.hub.cogs.reasoning.LMReasoning>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+    - Parameter: <cognify.hub.cogs.fewshot.LMFewShot>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+==================================================
+
+
+Trial - weight_6
+Log at: 16_budget_2_layer/weight/opt_logs.json
+  Quality improves by 200%  Cost is 1.24x original  Execution time is 2.16x originalQuality: 0.667, Cost per 1K invocation: $0.44, Avg exec time: 5.88 s
+********** Detailed Optimization Trace **********
+
+========== Layer: weight ==========
+
+  >>> Module: generate_answer <<<
+
+    - Parameter: <cognify.hub.cogs.reasoning.LMReasoning>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+    - Parameter: <cognify.hub.cogs.fewshot.LMFewShot>
+      Applied Option: generate_answer_demos_c6604672-f064-44c2-812f-cf93987716b3
+      Transformation Details:
+        - FewShot Examples -
+        2 demos:
+        Demonstration 1:
+        **Input**
+        {
+            "context": "['Bernard J. Schaffer | Bernard J. Schaffer (born 1974) is a police detective, an author, and a former child actor who appeared on the Nickelodeon program \"Don\\'t Just Sit There\". He joined the police...",
+            "question": "A police detective, author and former child actor who appeared on a show that had segments about making food and taking things apart, joined the police department in what year?"
+        }
+        
+        **Response**
+        {"answer":"1996"}
+        ========================================
+        Demonstration 2:
+        **Input**
+        {
+            "context": "['Annette Snell | Annette Snell (March 22, 1945 \u2013 April 4, 1977) was an American rhythm and blues singer who recorded in the 1960s and 1970s. She died in the Southern Airways Flight 242 crash.', 'Sout...",
+            "question": "Singer Annette Snell died in a airplane crash during a forced landing on a highway in what state?"
+        }
+        
+        **Response**
+        {"answer":"Georgia"}
+        ========================================
+
+    - Parameter: <cognify.hub.cogs.model_selection.LMSelection>
+      Applied Option: None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+      Transformation Details:
+        None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+
+  >>> Module: generate_query_1 <<<
+
+    - Parameter: <cognify.hub.cogs.reasoning.LMReasoning>
+      Applied Option: ZeroShotCoT
+      Transformation Details:
+        
+        - ZeroShotCoT -
+        Return step-by-step reasoning for the given chat prompt messages.
+        
+        Reasoning Prompt: 
+            Let's solve this problem step by step before giving the final response.
+
+    - Parameter: <cognify.hub.cogs.fewshot.LMFewShot>
+      Applied Option: generate_query_1_demos_13c35576-7877-4ad3-81c4-41cb690eec15
+      Transformation Details:
+        - FewShot Examples -
+        2 demos:
+        Demonstration 1:
+        **Input**
+        {
+            "context": "['The Yankee Years | The Yankee Years is a book written by Tom Verducci and Joe Torre. The book chronicles Torre\\'s years as manager of Major League Baseball\\'s New York Yankees from 1996 to 2007. It ...",
+            "question": "What year was the co-author (with Tom Verducci) of The Yankee Years born?"
+        }
+        
+        **Response**
+        {"search_query":"Joe Torre birth year"}
+        ========================================
+        Demonstration 2:
+        **Input**
+        {
+            "context": "['William Mapother | William Reibert Mapother Jr. ( ; born April 17, 1965) is an American actor, best known for his role as Ethan Rom on the television series \"Lost\".', 'Ethan Rom | Dr. Ethan Goodspee...",
+            "question": "\"Hurt\" is a 2009 gothic horror movie starring William Mapother, but what TV series is he most associated with?"
+        }
+        
+        **Response**
+        {"search_query":"William Mapother most associated TV series"}
+        ========================================
+
+    - Parameter: <cognify.hub.cogs.model_selection.LMSelection>
+      Applied Option: None_gpt-4o-mini
+      Transformation Details:
+        None_gpt-4o-mini
+
+  >>> Module: generate_query_0 <<<
+
+    - Parameter: <cognify.hub.cogs.reasoning.LMReasoning>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+    - Parameter: <cognify.hub.cogs.fewshot.LMFewShot>
+      Applied Option: generate_query_0_demos_afa33b42-87b6-4546-86ba-06d068dda71f
+      Transformation Details:
+        - FewShot Examples -
+        2 demos:
+        Demonstration 1:
+        **Input**
+        {
+            "question": "A police detective, author and former child actor who appeared on a show that had segments about making food and taking things apart, joined the police department in what year?"
+        }
+        
+        **Response**
+        {"search_query":"police detective author former child actor food show segments joined police department year"}
+        ========================================
+        Demonstration 2:
+        **Input**
+        {
+            "question": "Singer Annette Snell died in a airplane crash during a forced landing on a highway in what state?"
+        }
+        
+        **Response**
+        {"search_query":"Annette Snell airplane crash forced landing highway state"}
+        ========================================
+
+    - Parameter: <cognify.hub.cogs.model_selection.LMSelection>
+      Applied Option: None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+      Transformation Details:
+        None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+
+==================================================
+
+
+Trial - weight_3
+Log at: 8_budget_2_layer/weight/opt_logs.json
+  Quality improves by 158%  Cost is 0.59x original  Execution time is 1.14x originalQuality: 0.585, Cost per 1K invocation: $0.21, Avg exec time: 2.58 s
+********** Detailed Optimization Trace **********
+
+========== Layer: weight ==========
+
+  >>> Module: generate_answer <<<
+
+    - Parameter: <cognify.hub.cogs.reasoning.LMReasoning>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+    - Parameter: <cognify.hub.cogs.fewshot.LMFewShot>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+    - Parameter: <cognify.hub.cogs.model_selection.LMSelection>
+      Applied Option: None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+      Transformation Details:
+        None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+
+  >>> Module: generate_query_1 <<<
+
+    - Parameter: <cognify.hub.cogs.reasoning.LMReasoning>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+    - Parameter: <cognify.hub.cogs.fewshot.LMFewShot>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+    - Parameter: <cognify.hub.cogs.model_selection.LMSelection>
+      Applied Option: None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+      Transformation Details:
+        None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+
+  >>> Module: generate_query_0 <<<
+
+    - Parameter: <cognify.hub.cogs.reasoning.LMReasoning>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+    - Parameter: <cognify.hub.cogs.fewshot.LMFewShot>
+      Applied Option: NoChange
+      Transformation Details:
+        NoChange
+
+    - Parameter: <cognify.hub.cogs.model_selection.LMSelection>
+      Applied Option: None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+      Transformation Details:
+        None_fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-cec2fef2
+
+==================================================

@@ -31,8 +31,8 @@ def load_data():
             all_data.append((input, label))
         return all_data
             
-    all_train = load_from_file('benchmark_split/train_data.json')
-    test_data = load_from_file('benchmark_split/test_data.json')
+    all_train = load_from_file('benchmark_data/benchmark_instructions.json')
+    test_data = load_from_file('benchmark_data/benchmark_instructions.json')
     train_indices = np.random.choice(range(len(all_train)), 40, replace=False).tolist()
     eval_indices = list(set(range(len(all_train))) - set(train_indices))
     

@@ -5,6 +5,7 @@ from cognify.hub.evaluators import f1_score_str
 
 dotenv.load_dotenv()
 
+data_point = 2
 
 def load_sentiment_data(pool):
     sentiment_df = pd.read_parquet("data/sentiment.parquet")
@@ -18,7 +19,7 @@ def load_sentiment_data(pool):
             'label': row['output']
         }
         data.append((input, output))
-        if i >= 99:
+        if i >= data_point - 1:
             break
     pool[0].extend(data)
     pool[2].extend(data)
@@ -35,7 +36,7 @@ def load_relation_extraction_data(pool):
             'label': row['output']
         }
         data.append((input, output))
-        if i >= 99:
+        if i >= data_point - 1:
             break
     pool[0].extend(data)
     pool[2].extend(data)
@@ -52,7 +53,7 @@ def load_headline_data(pool):
             'label': row['output']
         }
         data.append((input, output))
-        if i >= 99:
+        if i >= data_point - 1:
             break
     pool[0].extend(data)
     pool[2].extend(data)
@@ -69,7 +70,7 @@ def load_fiqa_data(pool):
             'label': row['output']
         }
         data.append((input, output))
-        if i >= 99:
+        if i >= data_point - 1:
             break
     pool[0].extend(data)
     pool[2].extend(data)
@@ -131,11 +132,52 @@ def evaluate_fiqa(answer, label, task):
     return int(assessment.success)
     
 
-from cognify.hub.search import default
+from cognify.optimizer.core import driver, flow
+from cognify.llm.model import LMConfig
+from cognify.hub.cogs import reasoning, ensemble, model_selection
+from cognify.hub.cogs.common import NoChange
+from cognify.hub.cogs.fewshot import LMFewShot
+from cognify.hub.cogs.reasoning import ZeroShotCoT
+from cognify.optimizer.control_param import ControlParameter
 
-search_settings = default.create_search(
-    search_type='light',
-    n_trials=10,
-    opt_log_dir='mixed_opt_3',
+reasoning_param = reasoning.LMReasoning([NoChange(), ZeroShotCoT()])
+few_shot_params = LMFewShot(4)
+model_selection_param = model_selection.model_selection_factory(
+    [
+        LMConfig(model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-33abb831', kwargs={'max_tokens': 1024}),
+        LMConfig(model='gpt-4o-mini', kwargs={'max_tokens': 1024}),
+    ]
+)
+params = [reasoning_param, few_shot_params, model_selection_param]
+inner_opt_config = flow.OptConfig(
+    n_trials=32,
+)
+inner_loop_config = driver.LayerConfig(
+    layer_name="weight",
+    universal_params=params,
+    expected_num_agents=3,
+    opt_config=inner_opt_config,
+)
+
+general_usc_ensemble = ensemble.UniversalSelfConsistency(3)
+general_ensemble_params = ensemble.ModuleEnsemble(
+    [NoChange(), general_usc_ensemble]
+)
+outer_opt_config = flow.OptConfig(
+    n_trials=4,
+)
+outer_loop_config = driver.LayerConfig(
+    layer_name="structure",
+    universal_params=[general_ensemble_params],
+    expected_num_agents=3,
+)
+
+# ================= Overall Control Parameter =================
+optimize_control_param = ControlParameter(
+    opt_layer_configs=[inner_loop_config],
+    opt_history_log_dir=f"input_sense_2",
     evaluator_batch_size=20,
+    quality_constraint=1.0,
+    # auto_set_layer_config=True,
+    # total_num_trials=4,
 )

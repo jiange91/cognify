@@ -5,6 +5,7 @@ dotenv.load_dotenv()
 import dspy
 
 gpt4o_mini = dspy.LM(model='gpt-4o-mini', max_tokens=1024)
+# gpt4o_mini = dspy.LM(model='fireworks_ai/accounts/zih015-63d1a0/deployedModels/llama-v3p1-8b-instruct-33abb831', max_tokens=1024)
 colbert = dspy.ColBERTv2(url=os.environ['COLBERT_URL'])
 
 dspy.configure(lm=gpt4o_mini, rm=colbert)
