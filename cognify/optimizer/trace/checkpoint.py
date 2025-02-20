@@ -122,12 +122,12 @@ class LayerStat:
     
     def add_trial(self, params) -> str:
         # NOTE: hold study lock when calling this function
-        id = self._inc_log_id()
+        id = self._increment_log_id()
         log = TrialLog(layer_name=self.layer_name, params=params, id=id)
         self.opt_logs[log.id] = log
         return id
     
-    def _inc_log_id(self):
+    def _increment_log_id(self):
         max_id = None
         for log in self.opt_logs.values():
             id = int(log.id.split("_")[-1])
@@ -165,11 +165,11 @@ class LayerStat:
             self.opt_logs[trial_log_id] = trial_log
             self.opt_cost += trial_log.result.total_eval_cost
             
-        cancidates = self.filter_by_constraint()
-        if cancidates:
-            self.best_score = max([log.result.reduced_score for log in cancidates])
-            self.lowest_cost = min([log.result.reduced_price for log in cancidates])
-            self.fastest_exec_time = min([log.result.reduced_exec_time for log in cancidates])
+        candidates = self.filter_by_constraint()
+        if candidates:
+            self.best_score = max([log.result.reduced_score for log in candidates])
+            self.lowest_cost = min([log.result.reduced_price for log in candidates])
+            self.fastest_exec_time = min([log.result.reduced_exec_time for log in candidates])
         self._loaded = True
         return self.opt_logs
     
@@ -177,9 +177,9 @@ class LayerStat:
         """Save the optimization trace to a json file
         """
         opt_logs_json_obj = {}
-        for k, v in self.opt_logs.items():
-            if v.result and v.result.complete:
-                opt_logs_json_obj[k] = v.to_dict()
+        for trial_id, log in self.opt_logs.items():
+            if log.result and log.result.complete:
+                opt_logs_json_obj[trial_id] = log.to_dict()
         if not opt_logs_json_obj:
             logger.warning("No finished trials to save")
             return
@@ -202,7 +202,7 @@ class LayerStat:
     def filter_by_constraint(self) -> list[TrialLog]:
         """Get logs that are qualified
         """
-        cancidates = []
+        candidates = []
         for log_id, log in self.opt_logs.items():
             if not log.result or not log.result.complete:
                 continue
@@ -212,8 +212,8 @@ class LayerStat:
                 and log.result.reduced_score < CommonStats.quality_constraint
             ):
                 continue
-            cancidates.append(log)
-        return cancidates
+            candidates.append(log)
+        return candidates
 
     @property
     def best_metrics_so_far(self):
@@ -234,10 +234,10 @@ class LogManager:
         # by-layer configuration logs
         self.layer_stats: dict[str, LayerStat] = {}
         # global best metrics
-        self._glob_best_score = CommonStats.base_quality
-        self._glob_lowest_cost = CommonStats.base_price
-        self._glob_fastest_exec_time = CommonStats.base_exec_time
-        self._glob_lock = threading.Lock()
+        self._global_best_score = CommonStats.base_quality
+        self._global_lowest_cost = CommonStats.base_price
+        self._global_fastest_exec_time = CommonStats.base_exec_time
+        self._global_lock = threading.Lock()
         self._opt_trace = []
         # total cost of optimization
         self.total_opt_cost = 0.0
@@ -250,7 +250,6 @@ class LogManager:
         is_leaf: bool
     ):
         if layer_instance in self.layer_stats:
-            # raise ValueError(f"Layer {layer_instance} already registered at LogManager")
             return
         self.layer_stats[layer_instance] = LayerStat(layer_name, layer_instance, opt_log_path, is_leaf)
     
@@ -260,7 +259,7 @@ class LogManager:
     ):
         del self.layer_stats[layer_instance]
     
-    def add_trial(self, layer_instance: str, params) -> str:
+    def add_trial(self, layer_instance: str, params: dict) -> str:
         """Add a proposed configuration to the layer log
         """
         return self.layer_stats[layer_instance].add_trial(params)
@@ -276,27 +275,27 @@ class LogManager:
             return
         self.layer_stats[layer_instance].report_result(id, result)
         if self.layer_stats[layer_instance].is_leaf:
-            with self._glob_lock:
+            with self._global_lock:
                 # update global
-                self._update_glob_best_score(result.reduced_score)
-                self._update_glob_lowest_cost(result.reduced_price)
-                self._update_glob_fastest_exec_time(result.reduced_exec_time)
+                self._update_global_best_score(result.reduced_score)
+                self._update_global_lowest_cost(result.reduced_price)
+                self._update_global_fastest_exec_time(result.reduced_exec_time)
                 self.total_opt_cost += result.total_eval_cost
                 
                 # save the evaluation trace
                 _result_cpy = copy.deepcopy(result)
                 _result_cpy.meta = {
-                    'best_score': self._glob_best_score, 
-                    'lowest_cost': self._glob_lowest_cost, 
-                    'fastest_exec_time': self._glob_fastest_exec_time
+                    'best_score': self._global_best_score, 
+                    'lowest_cost': self._global_lowest_cost, 
+                    'fastest_exec_time': self._global_fastest_exec_time
                 }
                 self._opt_trace.append(_result_cpy.to_dict())
                 
                 # update progress bar
                 pbar.update_status(
-                    self._glob_best_score, 
-                    self._glob_lowest_cost, 
-                    self._glob_fastest_exec_time, 
+                    self._global_best_score, 
+                    self._global_lowest_cost, 
+                    self._global_fastest_exec_time, 
                     self.total_opt_cost
                 )
                 
@@ -312,9 +311,9 @@ class LogManager:
         local_best_score = self.layer_stats[layer_instance].best_score
         local_lowest_cost = self.layer_stats[layer_instance].lowest_cost
         fast_exec_time = self.layer_stats[layer_instance].fastest_exec_time
-        self._update_glob_best_score(local_best_score)
-        self._update_glob_lowest_cost(local_lowest_cost)
-        self._update_glob_fastest_exec_time(fast_exec_time)
+        self._update_global_best_score(local_best_score)
+        self._update_global_lowest_cost(local_lowest_cost)
+        self._update_global_fastest_exec_time(fast_exec_time)
         self.total_opt_cost += self.layer_stats[layer_instance].opt_cost
         return logs
     
@@ -337,7 +336,6 @@ class LogManager:
             for i, trial_log in enumerate(pareto_frontier):
                 print("--------------------------------------------------------")
                 print("Optimization_{}".format(i + 1))
-                # logger.info("  Params: {}".format(trial_log.params))
                 score, price, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.reduced_exec_time
                 if CommonStats.base_quality is not None:
                     print("  Quality improvement: {:.0f}%".format(
@@ -354,10 +352,6 @@ class LogManager:
                 print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, Execution time: {:.2f}s".format(
                     score, price * 1000, exec_time
                 ))
-                    # print("  Applied at: {}".format(trial_log.id))
-                    # logger.info("  config saved at: {}".format(log_path))
-
-                # logger.info("Opt Cost: {}".format(self.opt_cost))
                 print("========================================================")
         
         finished_trials: dict[str, tuple[TrialLog, str]] = {}
@@ -369,9 +363,9 @@ class LogManager:
         return self.total_opt_cost, pareto_frontier, finished_trials
     
     def init_progress_bar(self, num_total_trials, num_existing_trials):
-        initial_score = self._glob_best_score or 0
-        initial_cost = self._glob_lowest_cost or 0
-        initial_exec_time = self._glob_fastest_exec_time or 0
+        initial_score = self._global_best_score or 0
+        initial_cost = self._global_lowest_cost or 0
+        initial_exec_time = self._global_fastest_exec_time or 0
         pbar.init_pbar(
             total=num_total_trials,
             initial=num_existing_trials,
@@ -387,23 +381,23 @@ class LogManager:
         layer_instance = log_id.rsplit("_", 1)[0]
         return self.layer_stats[layer_instance].opt_logs[log_id]
         
-    def _update_glob_best_score(self, score):
+    def _update_global_best_score(self, score):
         if score is None:
             return
-        if self._glob_best_score is None or score > self._glob_best_score:
-            self._glob_best_score = score
+        if self._global_best_score is None or score > self._global_best_score:
+            self._global_best_score = score
     
-    def _update_glob_lowest_cost(self, cost):
+    def _update_global_lowest_cost(self, cost):
         if cost is None:
             return
-        if self._glob_lowest_cost is None or cost < self._glob_lowest_cost:
-            self._glob_lowest_cost = cost
+        if self._global_lowest_cost is None or cost < self._global_lowest_cost:
+            self._global_lowest_cost = cost
     
-    def _update_glob_fastest_exec_time(self, exec_time):
+    def _update_global_fastest_exec_time(self, exec_time):
         if exec_time is None:
             return
-        if self._glob_fastest_exec_time is None or exec_time < self._glob_fastest_exec_time:
-            self._glob_fastest_exec_time = exec_time
+        if self._global_fastest_exec_time is None or exec_time < self._global_fastest_exec_time:
+            self._global_fastest_exec_time = exec_time
     
     def _save_opt_trace(self):
         json.dump(self._opt_trace, open(self.opt_trace_log_path, "w+"), indent=4)
