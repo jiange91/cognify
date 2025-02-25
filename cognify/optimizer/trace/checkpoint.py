@@ -6,6 +6,7 @@ from typing import Any
 import logging
 import numpy as np
 import threading
+from dataclasses import dataclass
 
 from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv, _report_latency_reduction
 from cognify._tracing import trace_quality_improvement, trace_cost_improvement, trace_latency_improvement
@@ -229,6 +230,19 @@ class LayerStat:
     def best_metrics_so_far(self):
         return self.best_score, self.lowest_cost, self.fastest_exec_time
     
+@dataclass
+class OptHistoryEntry:
+    """Each step of the flattend optimization history
+    """
+    eval_result: EvaluationResult
+    best_metrics: tuple[float, float, float]
+    
+    def to_dict(self):
+        return {
+            "eval_result": self.eval_result.to_dict(),
+            "best_metrics": self.best_metrics
+        }
+    
 class LogManager:
     _instance = None
     
@@ -248,7 +262,7 @@ class LogManager:
         self._global_lowest_cost = CommonStats.base_cost
         self._global_fastest_exec_time = CommonStats.base_exec_time
         self._global_lock = threading.Lock()
-        self._opt_trace = []
+        self._opt_trace: list[OptHistoryEntry] = []
         # total cost of optimization
         self.total_opt_cost = 0.0
     
@@ -293,13 +307,9 @@ class LogManager:
                 self.total_opt_cost += result.total_eval_cost
                 
                 # save the evaluation trace
-                _result_cpy = copy.deepcopy(result)
-                _result_cpy.meta = {
-                    'best_score': self._global_best_score, 
-                    'lowest_cost': self._global_lowest_cost, 
-                    'fastest_exec_time': self._global_fastest_exec_time
-                }
-                self._opt_trace.append(_result_cpy.to_dict())
+                self._opt_trace.append(OptHistoryEntry(
+                    copy.deepcopy(result), (self._global_best_score, self._global_lowest_cost, self._global_fastest_exec_time)
+                ))
                 
                 # update progress bar
                 pbar.update_status(
@@ -395,7 +405,8 @@ class LogManager:
             self._global_fastest_exec_time = exec_time
     
     def _save_opt_trace(self):
-        json.dump(self._opt_trace, open(self.opt_trace_log_path, "w+"), indent=4)
+        opt_trace_json_obj = [entry.to_dict() for entry in self._opt_trace]
+        json.dump(opt_trace_json_obj, open(self.opt_trace_log_path, "w+"), indent=4)
         
     
 def dump_config_result(eval_result: EvaluationResult, trace_impv: bool = False) -> str:
@@ -405,15 +416,18 @@ def dump_config_result(eval_result: EvaluationResult, trace_impv: bool = False) 
     if CommonStats.base_quality is not None:
         quality_improvement = _report_quality_impv(eval_result.reduced_score, CommonStats.base_quality)
         impv_str += ("  Quality improves by {:.2f}%\n".format(quality_improvement))
-        trace_quality_improvement(quality_improvement)
+        if trace_impv:
+            trace_quality_improvement(quality_improvement)
     if CommonStats.base_cost is not None:
         cost_improvement = _report_cost_reduction(eval_result.reduced_price, CommonStats.base_cost)
         impv_str += ("  Cost is {:.2f}x original\n".format(cost_improvement))
-        trace_cost_improvement(cost_improvement)
+        if trace_impv:
+            trace_cost_improvement(cost_improvement)
     if CommonStats.base_exec_time is not None:
         exec_time_improvement = _report_latency_reduction(eval_result.reduced_exec_time, CommonStats.base_exec_time)
         impv_str += ("  Execution time is {:.2f}x original\n".format(exec_time_improvement))
-        trace_latency_improvement(exec_time_improvement)
+        if trace_impv:
+            trace_latency_improvement(exec_time_improvement)
     impv_str += (f"  Quality: {eval_result.reduced_score:.3f}, "
                f"Cost per 1K invocation: ${eval_result.reduced_price* 1000:.2f}, "
                f"Execution time: {eval_result.reduced_exec_time:.2f}s \n")
