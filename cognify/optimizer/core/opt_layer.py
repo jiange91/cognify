@@ -296,7 +296,7 @@ class OptLayer(OptLayerInterface):
                 scores=[],
                 prices=[],
                 exec_times=[float(0xDEADBEEF)],
-                total_eval_cost=self.opt_cost,
+                total_eval_cost=LogManager().layer_stats[self._bo_instance].opt_cost,
                 complete=True,
                 reduced_price=float(0xDEADBEEF),
                 reduced_score=0,
@@ -704,7 +704,6 @@ class OptLayer(OptLayerInterface):
                         visited.add(f)
                         if self._converged:
                             executor.shutdown(wait=False, cancel_futures=True)
-                            pbar.finish()
                             break
                     if _should_exit():
                         executor.shutdown(wait=False, cancel_futures=True)

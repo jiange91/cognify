@@ -8,6 +8,7 @@ import numpy as np
 import threading
 
 from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv, _report_latency_reduction
+from cognify._tracing import trace_quality_improvement, trace_cost_improvement, trace_latency_improvement
 from cognify.optimizer.core.common_stats import CommonStats
 from cognify.optimizer.trace.progress_info import pbar
 from cognify.optimizer.evaluator import EvalTask, EvaluationResult
@@ -16,6 +17,14 @@ logger = logging.getLogger(__name__)
 
 class TrialLog:
     """Log of a proposed configuration
+    
+    Args:
+        - id: unique identifier of the configuration
+        - layer_name: the layer that the configuration belongs to
+        - params: the value of all cogs in this configuration
+        - result: the evaluation result of the configuration
+        - eval_task_dict: the evaluation task for the evaluator 
+            (only last layer will set this)
     """
     def __init__(
         self,
@@ -235,7 +244,7 @@ class LogManager:
         self.layer_stats: dict[str, LayerStat] = {}
         # global best metrics
         self._global_best_score = CommonStats.base_quality
-        self._global_lowest_cost = CommonStats.base_price
+        self._global_lowest_cost = CommonStats.base_cost
         self._global_fastest_exec_time = CommonStats.base_exec_time
         self._global_lock = threading.Lock()
         self._opt_trace = []
@@ -336,22 +345,7 @@ class LogManager:
             for i, trial_log in enumerate(pareto_frontier):
                 print("--------------------------------------------------------")
                 print("Optimization_{}".format(i + 1))
-                score, price, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.reduced_exec_time
-                if CommonStats.base_quality is not None:
-                    print("  Quality improvement: {:.0f}%".format(
-                        _report_quality_impv(score, CommonStats.base_quality)
-                    ))
-                if CommonStats.base_price is not None:
-                    print("  Cost: {:.2f}x original".format(
-                        _report_cost_reduction(price, CommonStats.base_price)
-                    ))
-                if CommonStats.base_exec_time is not None:
-                    print("  Execution time: {:.2f}x original".format(
-                        _report_latency_reduction(exec_time, CommonStats.base_exec_time)
-                    ))
-                print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, Execution time: {:.2f}s".format(
-                    score, price * 1000, exec_time
-                ))
+                print(dump_config_result(trial_log.result))
                 print("========================================================")
         
         finished_trials: dict[str, tuple[TrialLog, str]] = {}
@@ -401,3 +395,25 @@ class LogManager:
     
     def _save_opt_trace(self):
         json.dump(self._opt_trace, open(self.opt_trace_log_path, "w+"), indent=4)
+        
+    
+def dump_config_result(eval_result: EvaluationResult, trace_impv: bool = False) -> str:
+    """Show the improvement of a transformation
+    """
+    impv_str = ""
+    if CommonStats.base_quality is not None:
+        quality_improvement = _report_quality_impv(eval_result.reduced_score, CommonStats.base_quality)
+        impv_str += ("  Quality improves by {:.2f}%\n".format(quality_improvement))
+        trace_quality_improvement(quality_improvement)
+    if CommonStats.base_cost is not None:
+        cost_improvement = _report_cost_reduction(eval_result.reduced_price, CommonStats.base_cost)
+        impv_str += ("  Cost is {:.2f}x original\n".format(cost_improvement))
+        trace_cost_improvement(cost_improvement)
+    if CommonStats.base_exec_time is not None:
+        exec_time_improvement = _report_latency_reduction(eval_result.reduced_exec_time, CommonStats.base_exec_time)
+        impv_str += ("  Execution time is {:.2f}x original\n".format(exec_time_improvement))
+        trace_latency_improvement(exec_time_improvement)
+    impv_str += (f"  Quality: {eval_result.reduced_score:.3f}, "
+               f"Cost per 1K invocation: ${eval_result.reduced_price* 1000:.2f}, "
+               f"Execution time: {eval_result.reduced_exec_time:.2f}s \n")
+    return impv_str

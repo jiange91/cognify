@@ -13,7 +13,7 @@ from cognify.optimizer.evaluator import (
 from cognify.optimizer.core.flow import LayerConfig
 from cognify.optimizer.core.opt_layer import OptLayer
 from cognify.optimizer.control_param import SelectedObjectives
-from cognify.optimizer.trace.checkpoint import LogManager, TrialLog
+from cognify.optimizer.trace.checkpoint import LogManager, TrialLog, dump_config_result
 from cognify.optimizer.trace.progress_info import pbar
 from cognify.optimizer.utils import _report_cost_reduction, _report_quality_impv, _report_latency_reduction
 from cognify._tracing import trace_quality_improvement, trace_cost_improvement, trace_latency_improvement
@@ -128,7 +128,7 @@ class MultiLayerOptimizationDriver:
             other_python_paths=other_python_paths,
         )
         logger.info("----------------- Optimization Finished -----------------")
-        self.dump_frontier_details(pareto_frontier, finished_trials)
+        self.dump_frontier_details(pareto_frontier, finished_trials, trace_impv=True)
         return pareto_frontier
 
     def _extract_trial_id(self, config_id: str) -> str:
@@ -168,13 +168,7 @@ class MultiLayerOptimizationDriver:
         eval_result = evaluator.get_score(mode='test', task=eval_task, show_progress_bar=True)
 
         print(f"=========== Evaluation Results ===========")
-        if CommonStats.base_quality is not None:
-            print("  Quality improvement: {:.0f}%".format(_report_quality_impv(eval_result.reduced_score, CommonStats.base_quality)))
-        if CommonStats.base_cost is not None:
-            print("  Cost is {:.2f}x original".format(_report_cost_reduction(eval_result.reduced_price, CommonStats.base_cost)))
-        if CommonStats.base_exec_time is not None:
-            print("  Execution time is {:.2f}x original".format(_report_latency_reduction(eval_result.reduced_exec_time, CommonStats.base_exec_time)))
-        print("  Quality: {:.2f}, Cost per 1K invocation: ${:.2f}, Execution time: {:.2f}s".format(eval_result.reduced_score, eval_result.reduced_price * 1000, eval_result.reduced_exec_time))
+        print(dump_config_result(eval_result))
         print("===========================================")
 
         return eval_result
@@ -198,10 +192,10 @@ class MultiLayerOptimizationDriver:
         _, pareto_frontier, finished_trials = LogManager().get_global_summary(verbose=True)
         # dump frontier details to file
         if dump_details:
-            self.dump_frontier_details(pareto_frontier, finished_trials)
+            self.dump_frontier_details(pareto_frontier, finished_trials, trace_impv=False)
         return
 
-    def dump_frontier_details(self, frontier: list[TrialLog], finished_trials: dict[str, tuple[TrialLog, str]]):
+    def dump_frontier_details(self, frontier: list[TrialLog], finished_trials: dict[str, tuple[TrialLog, str]], trace_impv: bool):
         param_log_dir = os.path.join(self.opt_log_dir, "optimized_workflow_details")
         if not os.path.exists(param_log_dir):
             os.makedirs(param_log_dir, exist_ok=True)
@@ -213,24 +207,10 @@ class MultiLayerOptimizationDriver:
             log_path = finished_trials[trial_log.id][1]
             details += f"Log at: {log_path}\n"
             details += f"Optimized for {str(CommonStats.objectives)}\n"
-            score, cost, exec_time = trial_log.result.reduced_score, trial_log.result.reduced_price, trial_log.result.reduced_exec_time
-            if CommonStats.base_quality is not None:
-                quality_improvement = _report_quality_impv(score, CommonStats.base_quality)
-                details += ("  Quality improves by {:.0f}%\n".format(quality_improvement))
-                trace_quality_improvement(quality_improvement)
-            if CommonStats.base_cost is not None:
-                cost_improvement = _report_cost_reduction(cost, CommonStats.base_price)
-                details += ("  Cost is {:.2f}x original".format(cost_improvement))
-                trace_cost_improvement(cost_improvement)
-            if CommonStats.base_exec_time is not None:
-                exec_time_improvement = _report_latency_reduction(exec_time, CommonStats.base_exec_time)
-                details += ("  Execution time is {:.2f}x original".format(exec_time_improvement))
-                trace_latency_improvement(exec_time_improvement)
-            details += f"Quality: {score:.3f}, Cost per 1K invocation: ${cost * 1000:.2f}, Execution time: {exec_time:.2f}s \n"
+            details += dump_config_result(trial_log.result, trace_impv)
             details += cog_transformations
             with open(dump_path, "w") as f:
                 f.write(details)
-
     
     def _load_from_file(self):
         """Recursively load all optimization logs
