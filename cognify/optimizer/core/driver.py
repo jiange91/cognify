@@ -103,6 +103,11 @@ class MultiLayerOptimizationDriver:
             self.opt_layer_factories[idx] = current_layer_factory
     
     def check_update_layer_config(self, idx: int):
+        """Finalize settings for advanced allocation strategies
+        
+        1. Reset mode to base for leaf layer
+        2. Set budget parameter according to the next layer's budget
+        """
         opt_config = self.layer_configs[idx].opt_config
         if idx == len(self.layer_configs) - 1:
             if opt_config.alloc_strategy.mode != "base":

@@ -207,7 +207,8 @@ class OptConfig:
 
         frac (float): fraction of the optimization from the last layer.
         
-        alloc_strategy (AllocationStrategy): resource allocation strategy.
+        alloc_strategy (AllocationStrategy): resource allocation strategy
+            leaf layer will ignore this.
     """
     n_trials: int
     num_parallel_proposal: int = field(default=2)

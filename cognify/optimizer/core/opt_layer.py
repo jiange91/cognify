@@ -238,6 +238,13 @@ class OptLayer(OptLayerInterface):
         # start optimization
         total_budget = self.top_down_info.opt_config.n_trials
         if total_budget > 0:
+            
+            # Init progress bar
+            if self.hierarchy_level == 0:
+                num_current_trials = LogManager().num_trials(self._bo_instance, finished=True)
+                num_total_trials = self.top_down_info.opt_config.n_trials + num_current_trials
+                LogManager().init_progress_bar(num_total_trials, num_current_trials)
+        
             logger.debug(f"Start optimization {self.name} with {total_budget} trials")
             
             self._optimize()
@@ -508,8 +515,8 @@ class OptLayer(OptLayerInterface):
     def _propose(self):
         with self._study_lock:
             trial = self.study.ask(self._search_space)
-            trial_id = LogManager().add_trial(self._bo_instance, trial.params)
-
+            
+        trial_id = LogManager().add_trial(self._bo_instance, trial.params, self._study_lock)
         logger.debug(
             f"- {self.name} - Trial {trial_id} apply params: {trial.params}"
         )
@@ -684,11 +691,6 @@ class OptLayer(OptLayerInterface):
             
         
     def _optimize_basic(self):
-        if self.hierarchy_level == 0:
-            num_current_trials = LogManager().num_trials(self._bo_instance, finished=True)
-            num_total_trials = self.top_down_info.opt_config.n_trials + num_current_trials
-            LogManager().init_progress_bar(num_total_trials, num_current_trials)
-        
         opt_config = self.top_down_info.opt_config
         with ThreadPoolExecutor(max_workers=opt_config.num_parallel_proposal) as executor:
             futures = [

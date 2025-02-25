@@ -129,11 +129,12 @@ class LayerStat:
         # if the logs already loaded from a file
         self._loaded = False
     
-    def add_trial(self, params) -> str:
-        # NOTE: hold study lock when calling this function
-        id = self._increment_log_id()
-        log = TrialLog(layer_name=self.layer_name, params=params, id=id)
-        self.opt_logs[log.id] = log
+    def add_trial(self, params, study_lock) -> str:
+        with study_lock:
+            id = self._increment_log_id()
+            log = TrialLog(layer_name=self.layer_name, params=params, id=id)
+            # log_id based on the current logs
+            self.opt_logs[log.id] = log
         return id
     
     def _increment_log_id(self):
@@ -268,10 +269,10 @@ class LogManager:
     ):
         del self.layer_stats[layer_instance]
     
-    def add_trial(self, layer_instance: str, params: dict) -> str:
+    def add_trial(self, layer_instance: str, params: dict, study_lock) -> str:
         """Add a proposed configuration to the layer log
         """
-        return self.layer_stats[layer_instance].add_trial(params)
+        return self.layer_stats[layer_instance].add_trial(params, study_lock)
 
     def num_trials(self, layer_instance: str, finished: bool = True):
         return len(self.layer_stats[layer_instance].get_completed_logs()) if finished \
