@@ -15,6 +15,7 @@ by up to 10x**, and reduces end-to-end **latency by up to 2.7x** compared to ori
 
 ## News
 
+- <b>May 15, 2025</b>: Our paper has been accepted to **KDD 2025!** See you in **Toronto** this August!
 - <b>Feb 12, 2025</b>: Cognify [research paper](https://arxiv.org/abs/2502.08056) available on arxiv.
 - <b>Nov 25, 2024</b>: Cognify announcement and overview blog post published [here](https://mlsys.wuklab.io/posts/cognify/).
 
